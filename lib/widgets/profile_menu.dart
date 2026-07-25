@@ -8,7 +8,9 @@ enum ProfileMenuAction { editProfile, changePicture, accountSettings, signOut }
 
 /// Clickable profile avatar. Opens a themed dropdown with account actions.
 class ProfileMenu extends ConsumerWidget {
-  const ProfileMenu({super.key});
+  const ProfileMenu({super.key, this.size = 36});
+
+  final double size;
 
   void _handleSelection(BuildContext context, ProfileMenuAction action) {
     switch (action) {
@@ -47,11 +49,11 @@ class ProfileMenu extends ConsumerWidget {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: CircleAvatar(
-          radius: 18,
+          radius: size / 2,
           backgroundColor: AppColors.surfaceCard,
           backgroundImage: avatarBytes != null ? MemoryImage(avatarBytes) : null,
           child: avatarBytes == null
-              ? const Icon(Icons.person_outline, size: 18, color: AppColors.textSecondary)
+              ? Icon(Icons.person_outline, size: size * 0.5, color: AppColors.textSecondary)
               : null,
         ),
       ),

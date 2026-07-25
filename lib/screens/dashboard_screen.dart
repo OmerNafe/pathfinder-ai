@@ -54,52 +54,58 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     });
 
+    final stageItems = buildStageRailItems(hasSetup ? '/gaps' : '/pathway/edit');
+
     return PageShell(
       builder: (context, isMobile) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Everything the rail doesn't cover stays reachable here —
-              // placed left of the rail so the bar reads symmetrically
-              // (a fixed-width anchor on each side isn't how it'd look with
-              // the menu tacked onto just one end).
-              QuickNavMenu(
-                items: [
-                  QuickNavItem(
-                    label: 'Exam prep',
-                    icon: Icons.school_outlined,
-                    color: AppColors.teal,
-                    onTap: () => context.go('/exam-prep'),
-                  ),
-                  QuickNavItem(
-                    label: 'My growth',
-                    icon: Icons.eco_outlined,
-                    color: AppColors.teal,
-                    onTap: _showGrowthDialog,
-                  ),
-                  QuickNavItem(
-                    label: 'About us',
-                    icon: Icons.info_outline,
-                    color: AppColors.textSecondary,
-                    onTap: () => context.go('/about'),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              // The 4-stage journey — done/current/upcoming — is both the
-              // primary navigation and an honest "you are here" indicator,
-              // replacing the old flat quick-nav pills for these 4 stops.
-              // Before setup, Diagnostic is genuinely the current stage —
-              // there's no real gap analysis to point to yet.
-              Expanded(
-                child: StageRail(
-                  items: buildStageRailItems(hasSetup ? '/gaps' : '/pathway/edit'),
+          if (isMobile)
+            // The full StageRail (4 stacked rows on a narrow screen) plus
+            // JourneyPathHero further down the page was two "where am I"
+            // indicators competing for the same space — a plain, elegant
+            // label reads instantly and leaves the visual journey map as
+            // the one real centerpiece.
+            _MobileStageLabel(items: stageItems)
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Everything the rail doesn't cover stays reachable here —
+                // placed left of the rail so the bar reads symmetrically
+                // (a fixed-width anchor on each side isn't how it'd look
+                // with the menu tacked onto just one end).
+                QuickNavMenu(
+                  items: [
+                    QuickNavItem(
+                      label: 'Exam prep',
+                      icon: Icons.school_outlined,
+                      color: AppColors.teal,
+                      onTap: () => context.go('/exam-prep'),
+                    ),
+                    QuickNavItem(
+                      label: 'My growth',
+                      icon: Icons.eco_outlined,
+                      color: AppColors.teal,
+                      onTap: _showGrowthDialog,
+                    ),
+                    QuickNavItem(
+                      label: 'About us',
+                      icon: Icons.info_outline,
+                      color: AppColors.textSecondary,
+                      onTap: () => context.go('/about'),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 12),
+                // The 4-stage journey — done/current/upcoming — is both the
+                // primary navigation and an honest "you are here" indicator,
+                // replacing the old flat quick-nav pills for these 4 stops.
+                // Before setup, Diagnostic is genuinely the current stage —
+                // there's no real gap analysis to point to yet.
+                Expanded(child: StageRail(items: stageItems)),
+              ],
+            ),
           const SizedBox(height: 28),
 
           if (!hasSetup)
@@ -112,7 +118,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           else if (isMobile)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _mobileTodayColumn(context, pathway, growth),
+              children: _mobileTodayColumn(context, pathway, growth, stageItems),
             )
           else
             Row(
@@ -213,10 +219,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   /// The mobile "quick peek" home: the route hero first, one real task to
-  /// act on right now, then everything else a scroll away — deliberately
-  /// not the desktop layout stacked, see journey_path_hero.dart and
-  /// today_task_card.dart for why.
-  List<Widget> _mobileTodayColumn(BuildContext context, PathwayData pathway, AsyncValue<GrowthState> growth) {
+  /// act on right now, then everything else as tappable icon shortcuts
+  /// rather than more stacked cards — deliberately not the desktop layout
+  /// shrunk down, see journey_path_hero.dart and today_task_card.dart.
+  List<Widget> _mobileTodayColumn(
+    BuildContext context,
+    PathwayData pathway,
+    AsyncValue<GrowthState> growth,
+    List<StageRailItem> stageItems,
+  ) {
     final tasks = ref.watch(pathwayTasksProvider);
     if (tasks.isEmpty) return const [];
 
@@ -224,22 +235,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final pending = tasks.where((t) => t.status == TaskStatus.pending);
     final priorityTask = rejected.isNotEmpty ? rejected.first : (pending.isNotEmpty ? pending.first : tasks.first);
     final verifiedCount = tasks.where((t) => t.status == TaskStatus.verified).length;
+    final streak = growth.value?.currentStreak ?? 0;
+    final certPercent = tasks.isEmpty ? 0 : ((verifiedCount / tasks.length) * 100).round();
 
     return [
-      JourneyPathHero(items: buildStageRailItems('/gaps')),
+      JourneyPathHero(items: stageItems),
       const SizedBox(height: 20),
       TodayTaskCard(task: priorityTask),
-      const SizedBox(height: 20),
+      const SizedBox(height: 24),
       Row(
         children: [
-          Expanded(child: _GrowthMiniCard(growth: growth.value, onTap: _showGrowthDialog)),
+          _QuickActionTile(
+            icon: Icons.local_fire_department_rounded,
+            color: AppColors.gold,
+            label: 'Streak',
+            badge: streak > 0 ? '$streak' : null,
+            onTap: _showGrowthDialog,
+          ),
+          _QuickActionTile(
+            icon: Icons.workspace_premium_outlined,
+            color: AppColors.teal,
+            label: 'Certificate',
+            badge: '$certPercent%',
+            onTap: () => context.go('/certificate'),
+          ),
+          _QuickActionTile(
+            icon: Icons.school_outlined,
+            color: AppColors.teal,
+            label: 'Exam prep',
+            onTap: () => context.go('/exam-prep'),
+          ),
+          _QuickActionTile(
+            icon: Icons.info_outline_rounded,
+            color: AppColors.textSecondary,
+            label: 'About',
+            onTap: () => context.go('/about'),
+          ),
         ],
-      ),
-      const SizedBox(height: 20),
-      _CertificateTeaserCard(
-        onTap: () => context.go('/certificate'),
-        verifiedCount: verifiedCount,
-        totalCount: tasks.length,
       ),
       const SizedBox(height: 20),
       Center(
@@ -249,6 +281,122 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
     ];
+  }
+}
+
+/// Small, elegant "you are here" label — replaces the full StageRail on
+/// mobile (see the note above where this is used) with plain typography
+/// instead of another bordered card competing with the journey hero.
+class _MobileStageLabel extends StatelessWidget {
+  const _MobileStageLabel({required this.items});
+
+  final List<StageRailItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentIndex = items.indexWhere((i) => i.status == StageStatus.current);
+    final current = items[currentIndex == -1 ? 0 : currentIndex];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'STAGE ${(currentIndex == -1 ? 0 : currentIndex) + 1} OF ${items.length}',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 2,
+            color: AppColors.textMuted,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          current.title,
+          style: const TextStyle(
+            fontFamily: AppTheme.displayFontFamily,
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            color: AppColors.gold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One tappable icon shortcut — the mobile substitute for a full
+/// FloatingCard when all the moment needs is an icon, a number, and a
+/// label. A small colored badge carries the one real number that matters
+/// (streak length, verified percentage); everything else is just a label.
+class _QuickActionTile extends StatelessWidget {
+  const _QuickActionTile({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onTap,
+    this.badge,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String? badge;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: color.withValues(alpha: 0.3)),
+                    ),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                  if (badge != null)
+                    Positioned(
+                      top: -4,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundElevated,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: color.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          badge!,
+                          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: color),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

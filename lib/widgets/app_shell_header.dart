@@ -83,12 +83,16 @@ class AppShellHeader extends StatelessWidget {
       child: LicensingRegistryMenu(isMobile: isMobile),
     );
 
+    // Bigger, properly touch-sized on mobile (44px meets the standard
+    // minimum tap target) rather than the same compact size used for a
+    // mouse pointer on desktop.
+    final actionSize = isMobile ? 44.0 : 36.0;
     final pinnedActions = Row(
       mainAxisSize: MainAxisSize.min,
-      children: const [
-        NotificationBell(),
-        SizedBox(width: 12),
-        ProfileMenu(),
+      children: [
+        NotificationBell(size: actionSize),
+        const SizedBox(width: 12),
+        ProfileMenu(size: actionSize),
       ],
     );
 

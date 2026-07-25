@@ -56,7 +56,9 @@ List<_NotificationItem> _buildNotifications(WidgetRef ref) {
 /// this applicant's real pathway/document/streak state (see
 /// [_buildNotifications]), not illustrative placeholder content.
 class NotificationBell extends ConsumerWidget {
-  const NotificationBell({super.key});
+  const NotificationBell({super.key, this.size = 36});
+
+  final double size;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -126,20 +128,20 @@ class NotificationBell extends ConsumerWidget {
           clipBehavior: Clip.none,
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: size,
+              height: size,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppColors.surfaceCard,
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.hairline),
               ),
-              child: const Icon(Icons.notifications_outlined, size: 17, color: AppColors.textSecondary),
+              child: Icon(Icons.notifications_outlined, size: size * 0.47, color: AppColors.textSecondary),
             ),
             if (notifications.isNotEmpty)
               Positioned(
-                top: 6,
-                right: 6,
+                top: size * 0.16,
+                right: size * 0.16,
                 child: Container(
                   width: 7,
                   height: 7,

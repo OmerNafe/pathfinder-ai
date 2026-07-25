@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
+import 'journey_icons.dart';
 import 'stage_rail.dart';
 
-const _stageIcons = [
-  Icons.fact_check_outlined,
-  Icons.search_rounded,
-  Icons.checklist_rounded,
-  Icons.flight_land_rounded,
+const _stageGlyphs = [
+  JourneyStageGlyph.diagnostic,
+  JourneyStageGlyph.gapAnalysis,
+  JourneyStageGlyph.guidedTasks,
+  JourneyStageGlyph.softLanding,
 ];
 
 /// The signature "route" visual, built for a glance rather than a read —
@@ -33,7 +34,7 @@ class JourneyPathHero extends StatelessWidget {
           Row(
             children: [
               for (var i = 0; i < items.length; i++) ...[
-                _PathNode(item: items[i], icon: _stageIcons[i]),
+                _PathNode(item: items[i], glyph: _stageGlyphs[i]),
                 if (i != items.length - 1)
                   Expanded(
                     child: _PathConnector(
@@ -74,21 +75,22 @@ class JourneyPathHero extends StatelessWidget {
 }
 
 class _PathNode extends StatelessWidget {
-  const _PathNode({required this.item, required this.icon});
+  const _PathNode({required this.item, required this.glyph});
   final StageRailItem item;
-  final IconData icon;
+  final JourneyStageGlyph glyph;
 
   @override
   Widget build(BuildContext context) {
     final isCurrent = item.status == StageStatus.current;
     final isDone = item.status == StageStatus.done;
     final color = isDone ? AppColors.teal : (isCurrent ? AppColors.gold : AppColors.textMuted);
+    final diameter = isCurrent ? 46.0 : 36.0;
 
     return GestureDetector(
       onTap: () => context.go(item.route),
       child: Container(
-        width: isCurrent ? 44 : 34,
-        height: isCurrent ? 44 : 34,
+        width: diameter,
+        height: diameter,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
@@ -98,7 +100,9 @@ class _PathNode extends StatelessWidget {
               ? [BoxShadow(color: AppColors.gold.withValues(alpha: 0.35), blurRadius: 14, spreadRadius: 1)]
               : null,
         ),
-        child: Icon(isDone ? Icons.check : icon, size: isCurrent ? 20 : 15, color: color),
+        child: isDone
+            ? Icon(Icons.check, size: 17, color: color)
+            : JourneyIcon(glyph: glyph, color: color, size: isCurrent ? 22 : 17),
       ),
     );
   }
