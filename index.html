@@ -46,6 +46,28 @@
   <meta name="twitter:image" content="og-image.jpg">
 
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Captures the browser's native "install this app" prompt so the Dart
+    side (lib/services/pwa_install_service.dart) can trigger it from a real
+    UI button instead of waiting for the browser's own mini-infobar. Chrome/
+    Edge/Android fire beforeinstallprompt; iOS Safari never does (no PWA
+    install API there at all) -- that's a real platform gap, not a bug here,
+    and the Dart service falls back to manual "Add to Home Screen"
+    instructions when this event never arrives.
+  -->
+  <script>
+    window.__pwaInstallEvent = null;
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      window.__pwaInstallEvent = event;
+      window.dispatchEvent(new Event('pwa-install-available'));
+    });
+    window.addEventListener('appinstalled', () => {
+      window.__pwaInstallEvent = null;
+      window.dispatchEvent(new Event('pwa-install-done'));
+    });
+  </script>
 </head>
 <body>
   <!--
