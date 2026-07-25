@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
+import '../services/avatar_upload_service.dart';
 import '../services/supabase_service.dart';
 
 const maritalStatusOptions = [
@@ -32,6 +33,7 @@ class ProfileData {
     this.yearsOfExperience,
     required this.highestQualification,
     this.avatarBytes,
+    this.avatarUrl,
   });
 
   final String fullName;
@@ -44,10 +46,10 @@ class ProfileData {
   final int? yearsOfExperience;
   final String highestQualification;
 
-  /// Session-local only — profile picture upload to Supabase Storage isn't
-  /// wired up yet, so this doesn't survive a refresh. Everything else on
-  /// this page does.
+  /// An just-picked image, shown immediately while the real upload is in
+  /// flight — not itself persisted. [avatarUrl] is the real, saved photo.
   final Uint8List? avatarBytes;
+  final String? avatarUrl;
 
   ProfileData copyWith({
     String? fullName,
@@ -60,6 +62,7 @@ class ProfileData {
     int? yearsOfExperience,
     String? highestQualification,
     Uint8List? avatarBytes,
+    String? avatarUrl,
   }) {
     return ProfileData(
       fullName: fullName ?? this.fullName,
@@ -72,6 +75,7 @@ class ProfileData {
       yearsOfExperience: yearsOfExperience ?? this.yearsOfExperience,
       highestQualification: highestQualification ?? this.highestQualification,
       avatarBytes: avatarBytes ?? this.avatarBytes,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 }
@@ -116,6 +120,7 @@ class ProfileNotifier extends Notifier<ProfileData> {
         maritalStatus: row['marital_status'] as String? ?? maritalStatusOptions.first,
         yearsOfExperience: row['years_of_experience'] as int?,
         highestQualification: row['highest_qualification'] as String? ?? highestQualificationOptions.first,
+        avatarUrl: row['avatar_url'] as String?,
       );
     } catch (_) {
       // Stay on defaults — see class doc.
@@ -167,8 +172,15 @@ class ProfileNotifier extends Notifier<ProfileData> {
     }
   }
 
-  void updateAvatar(Uint8List bytes) {
+  /// Shows [bytes] immediately (optimistic preview), then uploads for
+  /// real — on success the persisted avatarUrl takes over as the source
+  /// of truth; on failure the exception propagates so the screen can tell
+  /// the applicant it didn't actually save, rather than silently keeping
+  /// a preview that looks saved but isn't.
+  Future<void> updateAvatar(Uint8List bytes, {required String fileExt}) async {
     state = state.copyWith(avatarBytes: bytes);
+    final url = await AvatarUploadService.upload(bytes: bytes, fileExt: fileExt);
+    state = state.copyWith(avatarUrl: url);
   }
 }
 

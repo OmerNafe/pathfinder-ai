@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/avatar_upload_service.dart';
 import '../state/profile_state.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_snackbar.dart';
@@ -18,6 +19,12 @@ class ProfilePictureScreen extends ConsumerStatefulWidget {
 class _ProfilePictureScreenState extends ConsumerState<ProfilePictureScreen> {
   bool _picking = false;
 
+  String _extensionOf(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot == -1 || dot == fileName.length - 1) return 'jpg';
+    return fileName.substring(dot + 1).toLowerCase();
+  }
+
   Future<void> _pickPhoto() async {
     setState(() => _picking = true);
     try {
@@ -29,10 +36,13 @@ class _ProfilePictureScreenState extends ConsumerState<ProfilePictureScreen> {
       if (picked == null) return;
 
       final bytes = await picked.readAsBytes();
-      ref.read(profileProvider.notifier).updateAvatar(bytes);
+      await ref.read(profileProvider.notifier).updateAvatar(bytes, fileExt: _extensionOf(picked.name));
 
       if (!mounted) return;
       AppSnackBar.show(context, 'Profile picture updated');
+    } on AvatarUploadException catch (e) {
+      if (!mounted) return;
+      AppSnackBar.show(context, e.message);
     } catch (_) {
       if (!mounted) return;
       AppSnackBar.show(context, "Couldn't open the photo picker. Please try again.");
@@ -43,7 +53,9 @@ class _ProfilePictureScreenState extends ConsumerState<ProfilePictureScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final avatarBytes = ref.watch(profileProvider).avatarBytes;
+    final profile = ref.watch(profileProvider);
+    final avatarBytes = profile.avatarBytes;
+    final avatarUrl = profile.avatarUrl;
 
     return PageShell(
       pageTitle: 'Profile picture',
@@ -78,7 +90,9 @@ class _ProfilePictureScreenState extends ConsumerState<ProfilePictureScreen> {
                   ),
                   child: avatarBytes != null
                       ? Image.memory(avatarBytes, fit: BoxFit.cover)
-                      : const Icon(Icons.person_outline, size: 40, color: AppColors.textSecondary),
+                      : (avatarUrl != null
+                          ? Image.network(avatarUrl, fit: BoxFit.cover)
+                          : const Icon(Icons.person_outline, size: 40, color: AppColors.textSecondary)),
                 ),
                 const SizedBox(height: 24),
                 FilledButton.icon(
@@ -93,7 +107,7 @@ class _ProfilePictureScreenState extends ConsumerState<ProfilePictureScreen> {
                           ),
                         )
                       : const Icon(Icons.upload_outlined, size: 18),
-                  label: Text(_picking ? 'Opening picker…' : 'Upload new photo'),
+                  label: Text(_picking ? 'Saving…' : 'Upload new photo'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.gold,
                     foregroundColor: AppColors.backgroundDeep,

@@ -68,6 +68,34 @@ class AuthService {
     await _auth.signOut();
   }
 
+  /// Permanently deletes the signed-in applicant's account — the
+  /// delete-account Edge Function derives who to delete from this same
+  /// session's own token, removes their Storage files, then deletes the
+  /// auth user, which cascades through every table via "on delete
+  /// cascade". Irreversible; the caller is expected to have already
+  /// confirmed with the applicant before calling this.
+  static Future<void> deleteAccount() async {
+    if (!SupabaseService.isReady) {
+      throw const AppAuthException(
+        'The backend isn\'t connected yet — ask whoever is setting up Supabase to finish that step.',
+      );
+    }
+    try {
+      final response = await SupabaseService.client.functions.invoke('delete-account');
+      if (response.status != 200) {
+        final data = response.data;
+        final message =
+            (data is Map && data['error'] is String) ? data['error'] as String : 'Could not delete your account right now.';
+        throw AppAuthException(message);
+      }
+      await _auth.signOut();
+    } on AppAuthException {
+      rethrow;
+    } catch (_) {
+      throw const AppAuthException('Could not delete your account right now — try again.');
+    }
+  }
+
   /// Whether an account exists for [email] — see check-email-exists Edge
   /// Function for the security tradeoff this makes (most auth systems
   /// deliberately don't reveal this, to prevent email enumeration).

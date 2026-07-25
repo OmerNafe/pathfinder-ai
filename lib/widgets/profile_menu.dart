@@ -27,7 +27,11 @@ class ProfileMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final avatarBytes = ref.watch(profileProvider).avatarBytes;
+    final profile = ref.watch(profileProvider);
+    final avatarBytes = profile.avatarBytes;
+    final avatarUrl = profile.avatarUrl;
+    final ImageProvider? avatarImage =
+        avatarBytes != null ? MemoryImage(avatarBytes) : (avatarUrl != null ? NetworkImage(avatarUrl) : null);
 
     return PopupMenuButton<ProfileMenuAction>(
       tooltip: 'Account menu',
@@ -51,8 +55,8 @@ class ProfileMenu extends ConsumerWidget {
         child: CircleAvatar(
           radius: size / 2,
           backgroundColor: AppColors.surfaceCard,
-          backgroundImage: avatarBytes != null ? MemoryImage(avatarBytes) : null,
-          child: avatarBytes == null
+          backgroundImage: avatarImage,
+          child: avatarImage == null
               ? Icon(Icons.person_outline, size: size * 0.5, color: AppColors.textSecondary)
               : null,
         ),
