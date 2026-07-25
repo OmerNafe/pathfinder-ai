@@ -67,7 +67,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ? "Welcome back — $percent% of the way there, $streak-day streak going."
         : "Welcome back — $percent% of the way to ${pathway.occupation} in ${pathway.targetCountry}.";
 
-    showAppBanner(context, message: message, icon: Icons.route_outlined, accentColor: AppColors.teal);
+    // Shows the actual seed-to-tree growth photo, not just an icon, so
+    // "your pathway is growing" is something to see on login, not only
+    // read about behind a "My growth" tap.
+    showWelcomeBackBanner(context, message: message, growthPoints: growth?.growthPoints ?? 0);
   }
 
   void _showGrowthDialog() {

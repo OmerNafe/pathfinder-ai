@@ -2,25 +2,60 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import 'growth_trophy.dart';
 
-/// A brief, self-dismissing top-of-screen banner — used both for the
-/// "you're on the right path" milestone message and the welcome-back
-/// progress recap on login. Deliberately not a Scaffold SnackBar: this
-/// reads as a small celebratory moment rather than a generic status
-/// message, and doesn't require (or compete with) a Scaffold ancestor.
+/// A brief, self-dismissing top-of-screen banner — used for the
+/// "you're on the right path" milestone message. Deliberately not a
+/// Scaffold SnackBar: this reads as a small celebratory moment rather
+/// than a generic status message, and doesn't require (or compete with)
+/// a Scaffold ancestor.
 void showAppBanner(
   BuildContext context, {
   required String message,
   IconData icon = Icons.auto_awesome,
   Color accentColor = AppColors.gold,
 }) {
+  _insertBanner(
+    context,
+    leading: Icon(icon, size: 16, color: accentColor),
+    message: message,
+    accentColor: accentColor,
+  );
+}
+
+/// The richer login moment — shows the actual seed-to-tree growth photo
+/// (see growth_trophy.dart) alongside the progress recap, not just an
+/// icon, so "your pathway is growing" is something to actually see, not
+/// only read.
+void showWelcomeBackBanner(
+  BuildContext context, {
+  required String message,
+  required int growthPoints,
+}) {
+  _insertBanner(
+    context,
+    leading: GrowthTrophy(growthPoints: growthPoints, size: 40),
+    message: message,
+    accentColor: AppColors.teal,
+    duration: const Duration(milliseconds: 3400),
+  );
+}
+
+void _insertBanner(
+  BuildContext context, {
+  required Widget leading,
+  required String message,
+  required Color accentColor,
+  Duration duration = const Duration(milliseconds: 2800),
+}) {
   final overlay = Overlay.of(context, rootOverlay: true);
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (context) => _AppBannerContent(
+      leading: leading,
       message: message,
-      icon: icon,
       accentColor: accentColor,
+      duration: duration,
       onDone: () => entry.remove(),
     ),
   );
@@ -29,15 +64,17 @@ void showAppBanner(
 
 class _AppBannerContent extends StatefulWidget {
   const _AppBannerContent({
+    required this.leading,
     required this.message,
-    required this.icon,
     required this.accentColor,
+    required this.duration,
     required this.onDone,
   });
 
+  final Widget leading;
   final String message;
-  final IconData icon;
   final Color accentColor;
+  final Duration duration;
   final VoidCallback onDone;
 
   @override
@@ -58,7 +95,7 @@ class _AppBannerContentState extends State<_AppBannerContent> with SingleTickerP
     _slide = Tween<Offset>(begin: const Offset(0, -0.4), end: Offset.zero)
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
     _controller.forward();
-    _dismissTimer = Timer(const Duration(milliseconds: 2800), _dismiss);
+    _dismissTimer = Timer(widget.duration, _dismiss);
   }
 
   Future<void> _dismiss() async {
@@ -92,7 +129,7 @@ class _AppBannerContentState extends State<_AppBannerContent> with SingleTickerP
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceCardHover,
                         borderRadius: BorderRadius.circular(14),
@@ -108,8 +145,8 @@ class _AppBannerContentState extends State<_AppBannerContent> with SingleTickerP
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(widget.icon, size: 16, color: widget.accentColor),
-                          const SizedBox(width: 10),
+                          widget.leading,
+                          const SizedBox(width: 12),
                           Flexible(
                             child: Text(
                               widget.message,
