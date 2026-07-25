@@ -13,7 +13,6 @@ import '../theme/app_colors.dart';
 import '../utils/file_upload_validation.dart';
 import '../widgets/ai_processing_consent_dialog.dart';
 import '../widgets/app_snackbar.dart';
-import '../widgets/confetti_burst.dart';
 import '../widgets/elegant_progress_bar.dart';
 import '../widgets/floating_card.dart';
 import '../widgets/ghost_button.dart';
@@ -185,7 +184,6 @@ class _SubmitSection extends ConsumerWidget {
     ref.read(documentSubmissionProvider.notifier).submit();
     ref.read(growthProvider.notifier).recordAction();
     AppSounds.celebrate();
-    ConfettiBurst.play(context);
     AppSnackBar.show(context, 'Documents submitted and saved');
   }
 

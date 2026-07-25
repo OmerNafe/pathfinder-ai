@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/document_requirements.dart';
+import '../data/milestone_messages.dart';
 import '../data/occupation_registration_ledger.dart';
 import '../data/sample_dashboard_data.dart';
 import '../services/app_sounds.dart';
@@ -9,8 +10,7 @@ import '../state/growth_state.dart';
 import '../state/licensing_checklist_state.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
-import '../widgets/app_snackbar.dart';
-import '../widgets/confetti_burst.dart';
+import '../widgets/app_banner.dart';
 import '../widgets/elegant_progress_bar.dart';
 import '../widgets/page_shell.dart';
 import '../widgets/section_title.dart';
@@ -515,8 +515,6 @@ class _RegistrationDetailDialog extends ConsumerWidget {
 
   String get _cellKey => '$occupation|$country';
 
-  void _toast(BuildContext context, String message) => AppSnackBar.show(context, message);
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final steps = entry.steps;
@@ -621,8 +619,7 @@ class _RegistrationDetailDialog extends ConsumerWidget {
                               ref.read(licensingChecklistSubmissionProvider.notifier).submit(_cellKey);
                               ref.read(growthProvider.notifier).recordAction();
                               AppSounds.celebrate();
-                              ConfettiBurst.play(context);
-                              _toast(context, 'Checklist submitted and saved');
+                              showAppBanner(context, message: randomMilestoneMessage());
                             }
                           : null,
                       icon: const Icon(Icons.send_outlined, size: 16),

@@ -15,7 +15,6 @@ import '../theme/app_colors.dart';
 import '../utils/file_upload_validation.dart';
 import '../widgets/ai_processing_consent_dialog.dart';
 import '../widgets/app_snackbar.dart';
-import '../widgets/confetti_burst.dart';
 import '../widgets/floating_card.dart';
 import '../widgets/status_pill.dart';
 
@@ -104,7 +103,6 @@ class _TodayTaskCardState extends ConsumerState<TodayTaskCard> {
       );
       ref.read(growthProvider.notifier).recordAction();
       AppSounds.celebrate();
-      if (mounted) ConfettiBurst.play(context);
     } catch (e) {
       if (mounted) _toast('Upload failed: $e');
     } finally {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../data/milestone_messages.dart';
 import '../data/sample_dashboard_data.dart';
 import '../services/app_sounds.dart';
 import '../services/legal_acceptance_service.dart';
@@ -9,7 +10,7 @@ import '../state/pathway_state.dart';
 import '../state/pathway_tasks.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
-import '../widgets/confetti_burst.dart';
+import '../widgets/app_banner.dart';
 import '../widgets/elegant_progress_bar.dart';
 import '../widgets/eta_estimate_card.dart';
 import '../widgets/floating_card.dart';
@@ -33,6 +34,11 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  // Static, not instance state -- a fresh DashboardScreen is created every
+  // time go_router navigates back to '/', but this should only ever show
+  // once per real app session (i.e. once per login), not on every visit.
+  static bool _hasShownWelcomeThisSession = false;
+
   @override
   void initState() {
     super.initState();
@@ -42,8 +48,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (await LegalAcceptanceService.needsReacceptance() && mounted) {
         context.go('/legal/reaccept');
+        return;
       }
+      _maybeShowWelcomeBack();
     });
+  }
+
+  void _maybeShowWelcomeBack() {
+    if (_hasShownWelcomeThisSession || !mounted) return;
+    final pathway = ref.read(pathwayProvider);
+    if (!pathway.hasCompletedSetup) return;
+    _hasShownWelcomeThisSession = true;
+
+    final growth = ref.read(growthProvider).value;
+    final percent = (pathway.progress * 100).round();
+    final streak = growth?.currentStreak ?? 0;
+    final message = streak > 1
+        ? "Welcome back — $percent% of the way there, $streak-day streak going."
+        : "Welcome back — $percent% of the way to ${pathway.occupation} in ${pathway.targetCountry}.";
+
+    showAppBanner(context, message: message, icon: Icons.route_outlined, accentColor: AppColors.teal);
   }
 
   void _showGrowthDialog() {
@@ -64,7 +88,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final state = next.value;
       if (state != null && state.justReachedMajorStreak) {
         AppSounds.celebrate();
-        ConfettiBurst.play(context);
+        showAppBanner(context, message: randomMilestoneMessage());
       }
     });
 

@@ -141,9 +141,10 @@ class AppShellHeader extends StatelessWidget {
   }
 }
 
-/// Direct link to the searchable help center — a plain button rather than
-/// a dropdown like [LicensingRegistryMenu], since there's one destination,
-/// not a category to pick first.
+/// Direct link to the searchable help center — icon-only, matching
+/// NotificationBell/PwaInstallButton's plain circle style (an earlier
+/// pill-with-label version crowded the header next to Notifications on
+/// narrow screens).
 class _QuestionsButton extends StatelessWidget {
   const _QuestionsButton({required this.isMobile});
 
@@ -151,27 +152,23 @@ class _QuestionsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => context.go('/questions'),
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceCard,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.hairline),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.help_outline, size: isMobile ? 20 : 16, color: AppColors.gold),
-              const SizedBox(width: 8),
-              const Text(
-                'Questions',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-              ),
-            ],
+    final size = isMobile ? 44.0 : 36.0;
+    return Tooltip(
+      message: 'Questions',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => context.go('/questions'),
+          child: Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceCard,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.hairline),
+            ),
+            child: Icon(Icons.help_outline, size: size * 0.47, color: AppColors.gold),
           ),
         ),
       ),

@@ -11,7 +11,6 @@ import '../state/pathway_state.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_snackbar.dart';
-import '../widgets/confetti_burst.dart';
 import '../widgets/elegant_progress_bar.dart';
 import '../widgets/floating_card.dart';
 import '../widgets/page_shell.dart';
@@ -626,7 +625,6 @@ class _LicensingDetailDialog extends ConsumerWidget {
                               ref.read(licensingChecklistSubmissionProvider.notifier).submit(_cellKey);
                               ref.read(growthProvider.notifier).recordAction();
                               AppSounds.celebrate();
-                              ConfettiBurst.play(context);
                               _toast(context, 'Checklist submitted and saved');
                             }
                           : null,
