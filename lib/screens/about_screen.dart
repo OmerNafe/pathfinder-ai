@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../widgets/floating_card.dart';
 import '../widgets/page_shell.dart';
 import '../widgets/section_title.dart';
+import '../widgets/social_links_row.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -124,6 +125,16 @@ class AboutScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (hasAnySocialLinks) ...[
+            const SizedBox(height: 40),
+            const SectionTitle(
+              label: 'Get in touch',
+              subtitle: 'Follow along or reach out',
+              color: AppColors.teal,
+            ),
+            const SizedBox(height: 20),
+            const SocialLinksRow(),
+          ],
         ],
       ),
     );

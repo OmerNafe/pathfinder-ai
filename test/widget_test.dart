@@ -46,6 +46,7 @@ void main() {
     '/terms',
     '/privacy',
     '/legal/reaccept',
+    '/questions',
     '/licensing-registry',
     '/licensing-registry/healthcare',
     '/licensing-registry/engineering',

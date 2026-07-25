@@ -11,6 +11,7 @@ import '../widgets/app_snackbar.dart';
 import '../widgets/floating_card.dart';
 import '../widgets/journey_backdrop.dart';
 import '../widgets/route_diagram.dart';
+import '../widgets/social_links_row.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -613,10 +614,15 @@ class _FooterNote extends StatelessWidget {
             runSpacing: 8,
             children: [
               GestureDetector(onTap: () => context.go('/about'), child: Text('About us', style: linkStyle)),
+              GestureDetector(onTap: () => context.go('/questions'), child: Text('Questions', style: linkStyle)),
               GestureDetector(onTap: () => context.go('/terms'), child: Text('Terms of Service', style: linkStyle)),
               GestureDetector(onTap: () => context.go('/privacy'), child: Text('Privacy Policy', style: linkStyle)),
             ],
           ),
+          if (hasAnySocialLinks) ...[
+            const SizedBox(height: 12),
+            const SocialLinksRow(iconSize: 15),
+          ],
         ],
       ),
     );

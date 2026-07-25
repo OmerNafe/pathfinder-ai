@@ -19,6 +19,7 @@ import 'screens/privacy_policy_screen.dart';
 import 'screens/profile_edit_screen.dart';
 import 'screens/profile_picture_screen.dart';
 import 'screens/public_certificate_screen.dart';
+import 'screens/questions_screen.dart';
 import 'screens/registration_tracker_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/task_detail_screen.dart';
@@ -163,6 +164,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/legal/reaccept',
       pageBuilder: (context, state) => _fadePage(state: state, child: const LegalReacceptScreen()),
+    ),
+    GoRoute(
+      path: '/questions',
+      pageBuilder: (context, state) => _fadePage(state: state, child: const QuestionsScreen()),
     ),
   ],
 );

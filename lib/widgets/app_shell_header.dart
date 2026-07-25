@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import 'licensing_registry_menu.dart';
 import 'notification_bell.dart';
 import 'profile_menu.dart';
+import 'pwa_install_button.dart';
 
 /// Persistent header shown at the top of every page. The logo always
 /// navigates back to the dashboard, and an optional [pageTitle] renders
@@ -80,7 +81,14 @@ class AppShellHeader extends StatelessWidget {
     // no visual hint that there's more to the right.
     final overflowActions = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: LicensingRegistryMenu(isMobile: isMobile),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LicensingRegistryMenu(isMobile: isMobile),
+          const SizedBox(width: 8),
+          _QuestionsButton(isMobile: isMobile),
+        ],
+      ),
     );
 
     // Bigger, properly touch-sized on mobile (44px meets the standard
@@ -90,6 +98,7 @@ class AppShellHeader extends StatelessWidget {
     final pinnedActions = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        PwaInstallButton(size: actionSize),
         NotificationBell(size: actionSize),
         const SizedBox(width: 12),
         ProfileMenu(size: actionSize),
@@ -128,6 +137,44 @@ class AppShellHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Direct link to the searchable help center — a plain button rather than
+/// a dropdown like [LicensingRegistryMenu], since there's one destination,
+/// not a category to pick first.
+class _QuestionsButton extends StatelessWidget {
+  const _QuestionsButton({required this.isMobile});
+
+  final bool isMobile;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => context.go('/questions'),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.hairline),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.help_outline, size: isMobile ? 20 : 16, color: AppColors.gold),
+              const SizedBox(width: 8),
+              const Text(
+                'Questions',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
