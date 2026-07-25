@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/countries.dart';
+import '../services/auth_service.dart';
 import '../state/profile_state.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_snackbar.dart';
@@ -32,6 +33,8 @@ class ProfileEditScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
+  late final _originalEmail = ref.read(profileProvider).email;
+  bool _saving = false;
   late final _nameController = TextEditingController(text: ref.read(profileProvider).fullName);
   late final _emailController = TextEditingController(text: ref.read(profileProvider).email);
   late final _initialPhoneParts = _parsePhone(ref.read(profileProvider).phone);
@@ -94,13 +97,34 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
+    setState(() => _saving = true);
+
+    final newEmail = _emailController.text.trim();
+    final emailChanged = newEmail.isNotEmpty && newEmail != _originalEmail;
+
+    if (emailChanged) {
+      try {
+        await AuthService.updateEmail(newEmail);
+      } on AppAuthException catch (e) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        AppSnackBar.show(context, e.message);
+        return;
+      }
+    }
+
     final phoneNumber = _phoneController.text.trim();
     final phone = phoneNumber.isEmpty ? '' : '$_dialCode $phoneNumber';
 
     ref.read(profileProvider.notifier).updateDetails(
           fullName: _nameController.text,
-          email: _emailController.text,
+          // profiles has no email column -- auth.users' own email (just
+          // updated above, if it changed) is the real source of truth.
+          // Keep local state as whatever it already was until that change
+          // is confirmed, rather than optimistically showing the
+          // unconfirmed new address as if it were already active.
+          email: _originalEmail,
           phone: phone,
           dateOfBirth: _dateOfBirth,
           nationality: _nationalityController.text,
@@ -110,7 +134,12 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           highestQualification: _highestQualification,
         );
 
-    AppSnackBar.show(context, 'Profile updated');
+    if (!mounted) return;
+    setState(() => _saving = false);
+    AppSnackBar.show(
+      context,
+      emailChanged ? 'Profile updated. Check your new email address to confirm the change.' : 'Profile updated',
+    );
     context.go('/');
   }
 
@@ -245,23 +274,30 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed: () => context.go('/'),
+                onPressed: _saving ? null : () => context.go('/'),
                 style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
                 child: const Text('Cancel'),
               ),
               const SizedBox(width: 12),
               FilledButton(
-                onPressed: _save,
+                onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.gold,
                   foregroundColor: AppColors.backgroundDeep,
+                  disabledBackgroundColor: AppColors.gold.withValues(alpha: 0.5),
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text(
-                  'Save changes',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.backgroundDeep),
+                      )
+                    : const Text(
+                        'Save changes',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
               ),
             ],
           ),

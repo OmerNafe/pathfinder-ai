@@ -4,9 +4,10 @@ import 'auth_service.dart';
 import 'supabase_service.dart';
 
 class DocumentUploadResult {
-  const DocumentUploadResult({this.documentId, this.reviewResult, this.error});
+  const DocumentUploadResult({this.documentId, this.storagePath, this.reviewResult, this.error});
 
   final String? documentId;
+  final String? storagePath;
   final Map<String, dynamic>? reviewResult;
   final String? error;
 
@@ -73,11 +74,11 @@ class DocumentReviewService {
         final message = (data is Map && data['error'] is String)
             ? data['error'] as String
             : 'Document review failed.';
-        return DocumentUploadResult(documentId: documentId, error: message);
+        return DocumentUploadResult(documentId: documentId, storagePath: storagePath, error: message);
       }
 
       final result = data is Map ? data['result'] as Map<String, dynamic>? : null;
-      return DocumentUploadResult(documentId: documentId, reviewResult: result);
+      return DocumentUploadResult(documentId: documentId, storagePath: storagePath, reviewResult: result);
     } catch (e) {
       return DocumentUploadResult(error: 'Upload failed: $e');
     }

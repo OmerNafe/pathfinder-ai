@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../services/auth_service.dart';
 import '../state/profile_state.dart';
 import '../theme/app_colors.dart';
 
@@ -12,7 +13,7 @@ class ProfileMenu extends ConsumerWidget {
 
   final double size;
 
-  void _handleSelection(BuildContext context, ProfileMenuAction action) {
+  Future<void> _handleSelection(BuildContext context, ProfileMenuAction action) async {
     switch (action) {
       case ProfileMenuAction.editProfile:
         context.go('/profile/edit');
@@ -21,7 +22,10 @@ class ProfileMenu extends ConsumerWidget {
       case ProfileMenuAction.accountSettings:
         context.go('/settings/account');
       case ProfileMenuAction.signOut:
-        context.go('/sign-in');
+        // Actually end the Supabase session first -- previously this only
+        // navigated to /sign-in while the session token stayed valid.
+        await AuthService.signOut();
+        if (context.mounted) context.go('/sign-in');
     }
   }
 

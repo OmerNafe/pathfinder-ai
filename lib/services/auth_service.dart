@@ -68,6 +68,24 @@ class AuthService {
     await _auth.signOut();
   }
 
+  /// Starts a real email change — Supabase sends a confirmation link to
+  /// the new address (and, depending on project settings, the old one
+  /// too) before the change actually takes effect. There is no column on
+  /// `profiles` for email; auth.users' own email is the one source of
+  /// truth, so this is the only honest way to let someone change it.
+  static Future<void> updateEmail(String newEmail) async {
+    if (!SupabaseService.isReady) {
+      throw const AppAuthException(
+        'The backend isn\'t connected yet — ask whoever is setting up Supabase to finish that step.',
+      );
+    }
+    try {
+      await _auth.updateUser(UserAttributes(email: newEmail));
+    } on AuthApiException catch (e) {
+      throw AppAuthException(e.message);
+    }
+  }
+
   /// Permanently deletes the signed-in applicant's account — the
   /// delete-account Edge Function derives who to delete from this same
   /// session's own token, removes their Storage files, then deletes the

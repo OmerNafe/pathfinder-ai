@@ -272,8 +272,8 @@ class _SubmittedCard extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    "Real AI-powered analysis isn't connected yet — this confirms your "
-                    "documents are saved for this session, not that an AI has reviewed them.",
+                    "Submitting locks this checklist for your pathway. Each document was already "
+                    "reviewed by AI as you uploaded it — see the status on each item above, not here.",
                     style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5, height: 1.4),
                   ),
                 ),
@@ -474,6 +474,7 @@ class _DocumentUploadCard extends ConsumerWidget {
     if (uploadResult.error != null) {
       notifier.updateReview(
         requirement.id,
+        storagePath: uploadResult.storagePath,
         status: DocumentReviewStatus.failed,
         error: uploadResult.error,
       );
@@ -484,13 +485,15 @@ class _DocumentUploadCard extends ConsumerWidget {
     notifier.updateReview(
       requirement.id,
       documentId: uploadResult.documentId,
+      storagePath: uploadResult.storagePath,
       status: DocumentReviewStatus.reviewed,
       result: uploadResult.reviewResult,
     );
   }
 
-  void _removeFile(BuildContext context, WidgetRef ref) {
-    ref.read(documentUploadProvider.notifier).clear(requirement.id);
+  Future<void> _removeFile(BuildContext context, WidgetRef ref) async {
+    await ref.read(documentUploadProvider.notifier).removeDocument(requirement.id);
+    if (!context.mounted) return;
     _toast(context, 'Document removed');
   }
 
