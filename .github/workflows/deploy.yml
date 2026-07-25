@@ -18,6 +18,14 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
+      # pubspec.yaml declares .env as an asset (gitignored, so it never
+      # exists on a fresh checkout) -- flutter analyze fails on a missing
+      # declared asset even though nothing here actually needs real
+      # values. Same SUPABASE_ANON_KEY note as the deploy job below.
+      - name: Write .env for analyze/test
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
       - run: flutter analyze
       - run: flutter test
 
