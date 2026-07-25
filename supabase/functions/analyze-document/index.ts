@@ -18,6 +18,11 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  // Triggers a real (billed, once configured) AI call -- never reachable
+  // via GET.
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -81,7 +86,17 @@ Deno.serve(async (req: Request) => {
         // successful review to the client.
         return jsonResponse({ error: e.message, configured: false }, 503);
       }
-      throw e;
+      // A real extraction failure (OpenAI request/parsing error) must also
+      // leave the document in a terminal, honest state — not stuck on
+      // "reviewing" forever, which is what happened here before this
+      // branch existed.
+      console.error("analyze-document: extraction failed", e);
+      const message = "AI review failed — please try again.";
+      await admin.from("documents").update({
+        ai_review_status: "failed",
+        ai_review_result: { error: message },
+      }).eq("id", documentId);
+      return jsonResponse({ error: message }, 502);
     }
 
     const result = compareExtractedDocument(extracted);
@@ -89,7 +104,7 @@ Deno.serve(async (req: Request) => {
     await logAiCall({
       userId,
       feature: "document_review",
-      model: "openai-vision-stub",
+      model: Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini",
       prompt: `Extract fields for requirement ${doc.requirement_id}`,
       retrievedSources: [],
       output: result,

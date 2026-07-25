@@ -385,6 +385,29 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Security audit finding: verify_jwt was only ever set via a manually
+# remembered `--no-verify-jwt` (or its absence) on each `supabase functions
+# deploy` call, documented in a comment at the top of each function but
+# never enforced by anything -- a future deploy that forgets the flag
+# silently changes a function's auth posture. Codifying it here means
+# `supabase functions deploy` (with no per-call flag) always reproduces the
+# same, reviewable setting. Every function still re-checks auth in code
+# too (see each index.ts) -- this is defense in depth, not the only layer.
+[functions.analyze-document]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
+
+[functions.check-email-exists]
+verify_jwt = false
+
+[functions.get-public-certificate]
+verify_jwt = false
+
+[functions.send-reminders]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

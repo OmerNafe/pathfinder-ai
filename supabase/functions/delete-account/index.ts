@@ -18,6 +18,13 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  // A destructive action must never be reachable via GET -- a GET can be
+  // triggered by an <img> tag, link prefetching, or a browser extension
+  // without real user intent, no attacker-controlled Authorization header
+  // required.
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
   try {
     const authHeader = req.headers.get("Authorization");

@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>PathFinder AI uses your camera to photograph documents (like passports and certificates) directly into your checklist.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PathFinder AI needs access to your photo library so you can upload existing photos of your documents and choose a profile picture.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

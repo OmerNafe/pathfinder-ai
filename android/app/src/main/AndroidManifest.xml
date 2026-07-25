@@ -1,4 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for every network call this app makes (Supabase, Firebase).
+         The debug/profile manifests already had this for hot-reload tooling,
+         but the release build needs its own declaration or every request
+         fails outright. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Lets the in-app "take photo" document upload use the camera
+         directly rather than only ever falling back to an external camera
+         app via implicit intent. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
         android:label="PathFinder AI"
         android:name="${applicationName}"
