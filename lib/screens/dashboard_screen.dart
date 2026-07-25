@@ -1,0 +1,642 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../data/sample_dashboard_data.dart';
+import '../services/app_sounds.dart';
+import '../state/growth_state.dart';
+import '../state/pathway_state.dart';
+import '../state/pathway_tasks.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../widgets/confetti_burst.dart';
+import '../widgets/elegant_progress_bar.dart';
+import '../widgets/eta_estimate_card.dart';
+import '../widgets/floating_card.dart';
+import '../widgets/gap_alert_card.dart';
+import '../widgets/growth_trophy.dart';
+import '../widgets/landing_card.dart';
+import '../widgets/page_shell.dart';
+import '../widgets/quick_nav_bar.dart';
+import '../widgets/section_title.dart';
+import '../widgets/setup_required_card.dart';
+import '../widgets/stage_rail.dart';
+import '../widgets/task_row.dart';
+
+class DashboardScreen extends ConsumerStatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  void _showGrowthDialog() {
+    final state = ref.read(growthProvider).value;
+    if (state == null) return;
+    showDialog<void>(context: context, builder: (_) => _GrowthDialog(state: state));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pathway = ref.watch(pathwayProvider);
+    final growth = ref.watch(growthProvider);
+    final hasSetup = pathway.hasCompletedSetup;
+
+    // Growth/streak is only ever shown on request (via the "My growth" nav
+    // item below) — not popped up automatically on every dashboard visit.
+    ref.listen<AsyncValue<GrowthState>>(growthProvider, (previous, next) {
+      final state = next.value;
+      if (state != null && state.justReachedMajorStreak) {
+        AppSounds.celebrate();
+        ConfettiBurst.play(context);
+      }
+    });
+
+    return PageShell(
+      builder: (context, isMobile) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Everything the rail doesn't cover stays reachable here —
+              // placed left of the rail so the bar reads symmetrically
+              // (a fixed-width anchor on each side isn't how it'd look with
+              // the menu tacked onto just one end).
+              QuickNavMenu(
+                items: [
+                  QuickNavItem(
+                    label: 'Exam prep',
+                    icon: Icons.school_outlined,
+                    color: AppColors.teal,
+                    onTap: () => context.go('/exam-prep'),
+                  ),
+                  QuickNavItem(
+                    label: 'My growth',
+                    icon: Icons.eco_outlined,
+                    color: AppColors.teal,
+                    onTap: _showGrowthDialog,
+                  ),
+                  QuickNavItem(
+                    label: 'About us',
+                    icon: Icons.info_outline,
+                    color: AppColors.textSecondary,
+                    onTap: () => context.go('/about'),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              // The 4-stage journey — done/current/upcoming — is both the
+              // primary navigation and an honest "you are here" indicator,
+              // replacing the old flat quick-nav pills for these 4 stops.
+              // Before setup, Diagnostic is genuinely the current stage —
+              // there's no real gap analysis to point to yet.
+              Expanded(
+                child: StageRail(
+                  items: buildStageRailItems(hasSetup ? '/gaps' : '/pathway/edit'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          if (!hasSetup)
+            const SetupRequiredCard(
+              title: 'Let\'s map your pathway',
+              message: 'Pick your occupation and destination country and we\'ll identify the specific '
+                  'gaps between what you have and what\'s required. Nothing below is filled in yet — '
+                  'this is where your journey actually starts.',
+            )
+          else if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ..._mainColumn(context),
+                const SizedBox(height: 20),
+                ..._sideColumn(context, pathway, growth),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 7, child: Column(children: _mainColumn(context))),
+                const SizedBox(width: 24),
+                Expanded(flex: 5, child: Column(children: _sideColumn(context, pathway, growth))),
+              ],
+            ),
+
+          const SizedBox(height: 48),
+          const SectionTitle(
+            label: 'Soft landing hub',
+            subtitle: 'For later — once the pathway above is on track',
+            color: AppColors.gold,
+          ),
+          const SizedBox(height: 20),
+          _LandingGrid(isMobile: isMobile),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _mainColumn(BuildContext context) {
+    final tasks = ref.watch(pathwayTasksProvider);
+    final gaps = tasks.where((t) => t.status == TaskStatus.rejected).toList();
+
+    return [
+      if (gaps.isNotEmpty)
+        GapAlertCard(task: gaps.first, onTap: () => context.go('/tasks/${gaps.first.step}'))
+      else
+        FloatingCard(
+          accentColor: AppColors.teal,
+          onTap: () => context.go('/gaps'),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.check_circle_outline, color: AppColors.teal, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('No gaps identified yet', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Upload your documents below and anything that needs attention will show up here.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      const SizedBox(height: 20),
+      FloatingCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Your blueprint', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              'Every document your pathway needs, in order — this is what "guided" actually means.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            for (var i = 0; i < tasks.length; i++)
+              TaskRow(
+                task: tasks[i],
+                isLast: i == tasks.length - 1,
+                onTap: () => context.go('/tasks/${tasks[i].step}'),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _sideColumn(BuildContext context, PathwayData pathway, AsyncValue<GrowthState> growth) {
+    final tasks = ref.watch(pathwayTasksProvider);
+    final verifiedCount = tasks.where((t) => t.status == TaskStatus.verified).length;
+
+    return [
+      _CertificateTeaserCard(
+        onTap: () => context.go('/certificate'),
+        verifiedCount: verifiedCount,
+        totalCount: tasks.length,
+      ),
+      const SizedBox(height: 20),
+      _PathwaySummaryCard(pathway: pathway, onTap: () => context.go('/pathway/edit')),
+      const SizedBox(height: 20),
+      EtaEstimateCard(targetCountry: pathway.targetCountry, compact: true),
+      const SizedBox(height: 20),
+      _GrowthMiniCard(growth: growth.value, onTap: _showGrowthDialog),
+    ];
+  }
+}
+
+/// New: a live preview of the shareable Pathway Certificate — pure output,
+/// no extra work asked of the applicant, just a door into something they
+/// can now hand to a recruiter or institution.
+class _CertificateTeaserCard extends StatelessWidget {
+  const _CertificateTeaserCard({required this.onTap, required this.verifiedCount, required this.totalCount});
+  final VoidCallback onTap;
+  final int verifiedCount;
+  final int totalCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = totalCount == 0 ? 0.0 : verifiedCount / totalCount;
+    return FloatingCard(
+      accentColor: AppColors.gold,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text('Pathway Certificate', style: Theme.of(context).textTheme.titleLarge)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text('NEW', style: TextStyle(fontSize: 9.5, color: AppColors.gold, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'A shareable, verifiable snapshot of your progress.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              SizedBox(
+                width: 42,
+                height: 42,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 42,
+                      height: 42,
+                      child: CircularProgressIndicator(
+                        value: ratio,
+                        strokeWidth: 4,
+                        backgroundColor: AppColors.hairlineStrong,
+                        valueColor: const AlwaysStoppedAnimation(AppColors.teal),
+                        strokeCap: StrokeCap.round,
+                      ),
+                    ),
+                    Text('${(ratio * 100).round()}%',
+                        style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '$verifiedCount of $totalCount requirements verified',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'View certificate →',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.gold,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PathwaySummaryCard extends StatelessWidget {
+  const _PathwaySummaryCard({required this.pathway, required this.onTap});
+
+  final PathwayData pathway;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Your pathway', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 14),
+          _kv(context, 'Occupation', pathway.occupation),
+          const SizedBox(height: 8),
+          _kv(context, 'Destination', pathway.targetCountry),
+          const SizedBox(height: 16),
+          ElegantProgressBar(value: pathway.progress, height: 6),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  '${(pathway.progress * 100).round()}% mapped',
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Edit pathway →',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kv(BuildContext context, String k, String v) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          k.toUpperCase(),
+          style: const TextStyle(fontSize: 11, color: AppColors.textMuted, letterSpacing: 0.4),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            v,
+            textAlign: TextAlign.right,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GrowthMiniCard extends StatelessWidget {
+  const _GrowthMiniCard({required this.growth, required this.onTap});
+
+  final GrowthState? growth;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = growth;
+    final points = state?.growthPoints ?? 0;
+    final stage = growthStageFor(points);
+
+    return FloatingCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          GrowthTrophy(growthPoints: points, size: 56),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '${state?.currentStreak ?? 0}',
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(width: 5),
+                    Text('day streak', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11)),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  growthStageLabels[stage],
+                  style: const TextStyle(color: AppColors.teal, fontWeight: FontWeight.w600, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Greets the applicant on login with the *whole* journey laid out at
+/// once — every stage from seed to flourishing tree, in front of them,
+/// with the one they've reached lit up — rather than just a single trophy
+/// or an abstract chart.
+class _GrowthDialog extends StatelessWidget {
+  const _GrowthDialog({required this.state});
+
+  final GrowthState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = growthStageFor(state.growthPoints);
+
+    return Dialog(
+      backgroundColor: AppColors.surfaceCardHover,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: AppColors.hairlineStrong),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                growthStageLabels[stage],
+                style: const TextStyle(
+                  fontFamily: AppTheme.displayFontFamily,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_fire_department, color: AppColors.gold, size: 16),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${state.currentStreak}-day streak',
+                    style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  if (state.longestStreak > state.currentStreak) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      '· best ${state.longestStreak}',
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 24),
+              _GrowthRoadmap(currentStage: stage),
+              const SizedBox(height: 24),
+              Text(
+                growthPhraseFor(state.growthPoints),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${state.milestoneCount} milestone${state.milestoneCount == 1 ? '' : 's'} nourished so far',
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 11.5),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.gold,
+                    foregroundColor: AppColors.backgroundDeep,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Keep going', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Every stage, seed to flourishing tree, side by side — reached stages
+/// full-colour, the current one enlarged and lit up in gold, the rest
+/// dimmed so the applicant can see exactly what's still ahead.
+///
+/// Each tile is just [GrowthTrophy] fed that stage's own threshold value,
+/// so swapping in real photography later (in [GrowthTrophy] alone) updates
+/// every tile here automatically.
+class _GrowthRoadmap extends StatelessWidget {
+  const _GrowthRoadmap({required this.currentStage});
+
+  final int currentStage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        for (var i = 0; i < growthStageThresholds.length; i++) ...[
+          if (i > 0)
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 22),
+                height: 2,
+                color: i <= currentStage ? AppColors.teal.withValues(alpha: 0.6) : AppColors.hairline,
+              ),
+            ),
+          _RoadmapStageTile(
+            stage: i,
+            reached: i <= currentStage,
+            current: i == currentStage,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _RoadmapStageTile extends StatelessWidget {
+  const _RoadmapStageTile({required this.stage, required this.reached, required this.current});
+
+  final int stage;
+  final bool reached;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = current ? 76.0 : 56.0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: current ? Border.all(color: AppColors.gold, width: 1.5) : null,
+            boxShadow: current
+                ? [BoxShadow(color: AppColors.gold.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 1)]
+                : null,
+          ),
+          child: Opacity(
+            opacity: reached ? 1.0 : 0.32,
+            child: GrowthTrophy(growthPoints: growthStageThresholds[stage], size: size),
+          ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: 78,
+          child: Text(
+            growthStageLabels[stage],
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: current ? FontWeight.w700 : FontWeight.w500,
+              color: reached ? (current ? AppColors.gold : AppColors.textSecondary) : AppColors.textMuted,
+              height: 1.2,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LandingGrid extends StatelessWidget {
+  const _LandingGrid({required this.isMobile});
+  final bool isMobile;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = sampleLandingItems.asMap().entries.toList();
+
+    if (isMobile) {
+      return Column(
+        children: entries
+            .map((entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: LandingCard(
+                    item: entry.value,
+                    onTap: () => context.go('/landing/${entry.key}'),
+                  ),
+                ))
+            .toList(),
+      );
+    }
+
+    // Two cards per row on desktop/tablet, wrapping to further rows as the
+    // hub grows rather than squeezing every card into a single row.
+    final rows = <Widget>[];
+    for (var i = 0; i < entries.length; i += 2) {
+      final rowEntries = entries.skip(i).take(2).toList();
+      rows.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: i + 2 < entries.length ? 16 : 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var j = 0; j < rowEntries.length; j++) ...[
+                if (j > 0) const SizedBox(width: 16),
+                Expanded(
+                  child: LandingCard(
+                    item: rowEntries[j].value,
+                    onTap: () => context.go('/landing/${rowEntries[j].key}'),
+                  ),
+                ),
+              ],
+              if (rowEntries.length == 1) const Spacer(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(children: rows);
+  }
+}

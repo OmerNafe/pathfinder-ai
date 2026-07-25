@@ -1,0 +1,40 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.g.dart
+*.freezed.dart
+
+# Platform build output
+**/android/.gradle
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/ios/.symlinks/
+
+# Web build output
+/build/web/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# OS
+.DS_Store
+Thumbs.db
