@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/file_upload_validation.dart';
 import 'auth_service.dart';
 import 'supabase_service.dart';
 
@@ -42,7 +43,7 @@ class DocumentReviewService {
       await client.storage.from('documents').uploadBinary(
             storagePath,
             bytes,
-            fileOptions: const FileOptions(upsert: true),
+            fileOptions: FileOptions(upsert: true, contentType: mimeTypeFor(fileName)),
           );
 
       final row = await client

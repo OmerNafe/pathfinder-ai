@@ -69,7 +69,7 @@ class LicensingRegistryMenu extends StatelessWidget {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: isMobile ? 9 : 14, vertical: 9),
+          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 14, vertical: 10),
           decoration: BoxDecoration(
             color: AppColors.surfaceCard,
             borderRadius: BorderRadius.circular(999),
@@ -78,14 +78,12 @@ class LicensingRegistryMenu extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.badge_outlined, size: 16, color: AppColors.teal),
-              if (!isMobile) ...[
-                const SizedBox(width: 8),
-                const Text(
-                  'Licensing registry',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                ),
-              ],
+              Icon(Icons.badge_outlined, size: isMobile ? 20 : 16, color: AppColors.teal),
+              const SizedBox(width: 8),
+              Text(
+                isMobile ? 'Licensing' : 'Licensing registry',
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              ),
               const SizedBox(width: 2),
               const Icon(Icons.expand_more, size: 16, color: AppColors.textMuted),
             ],

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/auth_service.dart';
+import '../services/legal_acceptance_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/floating_card.dart';
+import '../widgets/journey_backdrop.dart';
 
 /// Where Supabase's confirmation email actually lands — it redirects to
 /// the app's origin with a `?code=` query param (not a hash route), so
@@ -39,10 +41,14 @@ class _EmailConfirmedScreenState extends State<EmailConfirmedScreen> {
     try {
       await AuthService.exchangeCodeForSession(code);
       if (!mounted) return;
-      setState(() => _status = _ConfirmStatus.success);
-      await Future<void>.delayed(const Duration(seconds: 2));
+      // Covers the signup path where no session existed yet at the time
+      // the applicant ticked the agreement checkbox (see sign_in_screen's
+      // _startJourney) — a session exists now, so the acceptance this
+      // account already implicitly gave can actually be written down.
+      await LegalAcceptanceService.recordAcceptance(LegalDocument.terms);
+      await LegalAcceptanceService.recordAcceptance(LegalDocument.privacy);
       if (!mounted) return;
-      context.go('/pathway/edit');
+      setState(() => _status = _ConfirmStatus.success);
     } on AppAuthException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -55,53 +61,56 @@ class _EmailConfirmedScreenState extends State<EmailConfirmedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundDeep,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: FloatingCard(
-              accentColor: _status == _ConfirmStatus.failed ? AppColors.danger : AppColors.gold,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _icon(),
-                  const SizedBox(height: 20),
-                  Text(
-                    _title(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: AppTheme.displayFontFamily,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _message(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5, height: 1.5),
-                  ),
-                  if (_status == _ConfirmStatus.failed || _status == _ConfirmStatus.missingCode) ...[
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () => context.go('/sign-in'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.gold,
-                          foregroundColor: AppColors.backgroundDeep,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      body: JourneyBackdrop(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: FloatingCard(
+                  accentColor: _status == _ConfirmStatus.failed ? AppColors.danger : AppColors.gold,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _icon(),
+                      const SizedBox(height: 20),
+                      Text(
+                        _title(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: AppTheme.displayFontFamily,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
                         ),
-                        child: const Text('Back to sign in', style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
-                    ),
-                  ],
-                ],
+                      const SizedBox(height: 8),
+                      Text(
+                        _message(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5, height: 1.5),
+                      ),
+                      if (_status != _ConfirmStatus.working) ...[
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: () => context.go('/sign-in'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.gold,
+                              foregroundColor: AppColors.backgroundDeep,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Back to sign in', style: TextStyle(fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -141,7 +150,7 @@ class _EmailConfirmedScreenState extends State<EmailConfirmedScreen> {
       case _ConfirmStatus.working:
         return 'Confirming your email…';
       case _ConfirmStatus.success:
-        return 'Email confirmed';
+        return 'Account verified successfully';
       case _ConfirmStatus.failed:
         return 'Confirmation link didn\'t work';
       case _ConfirmStatus.missingCode:
@@ -154,7 +163,7 @@ class _EmailConfirmedScreenState extends State<EmailConfirmedScreen> {
       case _ConfirmStatus.working:
         return 'One moment.';
       case _ConfirmStatus.success:
-        return 'You\'re all set — taking you to set up your pathway now.';
+        return 'Your email is confirmed. Sign in to continue.';
       case _ConfirmStatus.failed:
         return _errorMessage ?? 'This link may have expired. Try signing in, or request a new confirmation email.';
       case _ConfirmStatus.missingCode:

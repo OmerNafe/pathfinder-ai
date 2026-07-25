@@ -10,6 +10,8 @@ import '../state/document_upload_state.dart';
 import '../state/growth_state.dart';
 import '../state/pathway_state.dart';
 import '../theme/app_colors.dart';
+import '../utils/file_upload_validation.dart';
+import '../widgets/ai_processing_consent_dialog.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/confetti_burst.dart';
 import '../widgets/elegant_progress_bar.dart';
@@ -440,6 +442,22 @@ class _DocumentUploadCard extends ConsumerWidget {
     }
 
     final file = result.files.first;
+    final validationError = validateDocumentFile(fileName: file.name, sizeBytes: file.size);
+    if (validationError != null) {
+      if (!context.mounted) return;
+      _toast(context, validationError);
+      return;
+    }
+
+    if (!context.mounted) return;
+    final consented = await ensureAiProcessingConsent(context);
+    if (!consented) {
+      if (!context.mounted) return;
+      _toast(context, 'Upload cancelled — AI review requires agreeing to how your document is processed.');
+      return;
+    }
+    if (!context.mounted) return;
+
     final notifier = ref.read(documentUploadProvider.notifier);
     notifier.setUploaded(
       requirement.id,

@@ -12,6 +12,8 @@ import '../state/document_upload_state.dart';
 import '../state/growth_state.dart';
 import '../state/pathway_tasks.dart';
 import '../theme/app_colors.dart';
+import '../utils/file_upload_validation.dart';
+import '../widgets/ai_processing_consent_dialog.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/confetti_burst.dart';
 import '../widgets/floating_card.dart';
@@ -57,6 +59,20 @@ class _TodayTaskCardState extends ConsumerState<TodayTaskCard> {
         fileName = file.name;
         bytes = file.bytes!;
       }
+
+      final validationError = validateDocumentFile(fileName: fileName, sizeBytes: bytes.length);
+      if (validationError != null) {
+        _toast(validationError);
+        return;
+      }
+
+      if (!mounted) return;
+      final consented = await ensureAiProcessingConsent(context);
+      if (!consented) {
+        if (mounted) _toast('Upload cancelled — AI review requires agreeing to how your document is processed.');
+        return;
+      }
+      if (!mounted) return;
 
       final requirementId = widget.task.requirementId;
       final notifier = ref.read(documentUploadProvider.notifier);

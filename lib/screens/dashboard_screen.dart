@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/sample_dashboard_data.dart';
 import '../services/app_sounds.dart';
+import '../services/legal_acceptance_service.dart';
 import '../state/growth_state.dart';
 import '../state/pathway_state.dart';
 import '../state/pathway_tasks.dart';
@@ -32,6 +33,19 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // A material Terms/Privacy update re-gates access on next dashboard
+    // visit rather than silently assuming an old acceptance still covers
+    // new terms — checked post-frame so it never blocks the first paint.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await LegalAcceptanceService.needsReacceptance() && mounted) {
+        context.go('/legal/reaccept');
+      }
+    });
+  }
+
   void _showGrowthDialog() {
     final state = ref.read(growthProvider).value;
     if (state == null) return;

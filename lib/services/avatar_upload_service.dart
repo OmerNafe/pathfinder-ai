@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/file_upload_validation.dart';
 import 'auth_service.dart';
 import 'supabase_service.dart';
 
@@ -33,7 +34,7 @@ class AvatarUploadService {
       await client.storage.from('avatars').uploadBinary(
             storagePath,
             bytes,
-            fileOptions: const FileOptions(upsert: true),
+            fileOptions: FileOptions(upsert: true, contentType: mimeTypeFor(storagePath)),
           );
 
       final url = client.storage.from('avatars').getPublicUrl(storagePath);

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/avatar_upload_service.dart';
 import '../state/profile_state.dart';
 import '../theme/app_colors.dart';
+import '../utils/file_upload_validation.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/floating_card.dart';
 import '../widgets/page_shell.dart';
@@ -36,6 +37,12 @@ class _ProfilePictureScreenState extends ConsumerState<ProfilePictureScreen> {
       if (picked == null) return;
 
       final bytes = await picked.readAsBytes();
+      final validationError = validateImageFile(fileName: picked.name, sizeBytes: bytes.length);
+      if (validationError != null) {
+        if (!mounted) return;
+        AppSnackBar.show(context, validationError);
+        return;
+      }
       await ref.read(profileProvider.notifier).updateAvatar(bytes, fileExt: _extensionOf(picked.name));
 
       if (!mounted) return;

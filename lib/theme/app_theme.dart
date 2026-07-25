@@ -1,5 +1,46 @@
 import 'package:flutter/material.dart';
+import '../services/app_sounds.dart';
 import 'app_colors.dart';
+
+/// Plays the click sound at the exact moment any Material button/InkWell
+/// actually reacts to a press (its ink splash is created) — not on every
+/// touch anywhere on screen (that was the old app-wide PointerDown
+/// listener, which fired for scrolling and background taps too). Setting
+/// this once here covers every button across the app without threading a
+/// sound call through each of their onPressed handlers individually.
+class _SoundSplashFactory extends InteractiveInkFeatureFactory {
+  const _SoundSplashFactory();
+
+  @override
+  InteractiveInkFeature create({
+    required MaterialInkController controller,
+    required RenderBox referenceBox,
+    required Offset position,
+    required Color color,
+    required TextDirection textDirection,
+    bool containedInkWell = false,
+    RectCallback? rectCallback,
+    BorderRadius? borderRadius,
+    ShapeBorder? customBorder,
+    double? radius,
+    VoidCallback? onRemoved,
+  }) {
+    AppSounds.click();
+    return InkRipple.splashFactory.create(
+      controller: controller,
+      referenceBox: referenceBox,
+      position: position,
+      color: color,
+      textDirection: textDirection,
+      containedInkWell: containedInkWell,
+      rectCallback: rectCallback,
+      borderRadius: borderRadius,
+      customBorder: customBorder,
+      radius: radius,
+      onRemoved: onRemoved,
+    );
+  }
+}
 
 class AppTheme {
   AppTheme._();
@@ -16,6 +57,7 @@ class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.backgroundDeep,
+      splashFactory: const _SoundSplashFactory(),
       colorScheme: base.colorScheme.copyWith(
         primary: AppColors.gold,
         secondary: AppColors.teal,

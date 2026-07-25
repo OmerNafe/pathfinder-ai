@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../data/sample_dashboard_data.dart';
 import '../services/auth_service.dart';
+import '../services/legal_acceptance_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/floating_card.dart';
+import '../widgets/journey_backdrop.dart';
 import '../widgets/route_diagram.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -27,6 +29,7 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _obscureJoinPassword = true;
   int _activeTab = 0;
   bool _isSubmitting = false;
+  bool _agreedToTerms = false;
 
   @override
   void dispose() {
@@ -92,6 +95,10 @@ class _SignInScreenState extends State<SignInScreen> {
       _showSnack('Please fill in your name, email, and password.');
       return;
     }
+    if (!_agreedToTerms) {
+      _showSnack('Please agree to the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
     setState(() => _isSubmitting = true);
     try {
       final hasSession = await AuthService.signUp(
@@ -101,9 +108,16 @@ class _SignInScreenState extends State<SignInScreen> {
       );
       if (!mounted) return;
       if (hasSession) {
+        // A session exists right away, so the acceptance can be recorded
+        // now. When email confirmation is required instead (the else
+        // branch below), there's no session yet to write with — that path
+        // is recorded in EmailConfirmedScreen once one exists.
+        await LegalAcceptanceService.recordAcceptance(LegalDocument.terms);
+        await LegalAcceptanceService.recordAcceptance(LegalDocument.privacy);
         // Occupation and destination aren't asked at signup — the applicant
         // picks those on the dedicated pathway screen right after, where a
         // full searchable list actually fits (see pathway_state.dart).
+        if (!mounted) return;
         context.go('/pathway/edit');
       } else {
         _showSnack('Account created — check your email to confirm it, then sign in.');
@@ -120,7 +134,7 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _JourneyBackdrop(
+      body: JourneyBackdrop(
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -142,6 +156,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 obscureJoinPassword: _obscureJoinPassword,
                 onToggleJoinObscure: () => setState(() => _obscureJoinPassword = !_obscureJoinPassword),
                 onStartJourney: _startJourney,
+                agreedToTerms: _agreedToTerms,
+                onAgreedToTermsChanged: (v) => setState(() => _agreedToTerms = v),
               );
 
               return SingleChildScrollView(
@@ -296,59 +312,6 @@ List<RouteStop> _narrowStops() => [
 /// a window seat mid-flight, dimmed toward the left where the headline and
 /// form sit so the photo reads as atmosphere rather than competing with
 /// the text.
-class _JourneyBackdrop extends StatelessWidget {
-  const _JourneyBackdrop({required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/hero_journey_sky.jpg',
-              fit: BoxFit.cover,
-              alignment: Alignment.centerRight,
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    AppColors.backgroundDeep,
-                    AppColors.backgroundDeep.withValues(alpha: 0.5),
-                  ],
-                  stops: const [0.05, 0.9],
-                ),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.backgroundDeep.withValues(alpha: 0.7),
-                    AppColors.backgroundDeep.withValues(alpha: 0.88),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.isWide});
   final bool isWide;
@@ -624,19 +587,35 @@ class _FooterNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final linkStyle = const TextStyle(color: AppColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w600);
     return Container(
       padding: const EdgeInsets.only(top: 20),
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.hairline)),
       ),
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        runSpacing: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('PathFinder AI', style: TextStyle(color: AppColors.textMuted, fontSize: 11.5)),
-          Text(
-            'Organizational and informational — not a substitute for a licensed migration agent.',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
+          const Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runSpacing: 8,
+            children: [
+              Text('PathFinder AI', style: TextStyle(color: AppColors.textMuted, fontSize: 11.5)),
+              Text(
+                'Organizational and informational — not a substitute for a licensed migration agent.',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              GestureDetector(onTap: () => context.go('/about'), child: Text('About us', style: linkStyle)),
+              GestureDetector(onTap: () => context.go('/terms'), child: Text('Terms of Service', style: linkStyle)),
+              GestureDetector(onTap: () => context.go('/privacy'), child: Text('Privacy Policy', style: linkStyle)),
+            ],
           ),
         ],
       ),
@@ -763,6 +742,8 @@ class _AuthPanel extends StatelessWidget {
     required this.obscureJoinPassword,
     required this.onToggleJoinObscure,
     required this.onStartJourney,
+    required this.agreedToTerms,
+    required this.onAgreedToTermsChanged,
   });
 
   final int activeTab;
@@ -782,6 +763,8 @@ class _AuthPanel extends StatelessWidget {
   final bool obscureJoinPassword;
   final VoidCallback onToggleJoinObscure;
   final VoidCallback onStartJourney;
+  final bool agreedToTerms;
+  final ValueChanged<bool> onAgreedToTermsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -812,6 +795,8 @@ class _AuthPanel extends StatelessWidget {
               onToggleObscure: onToggleJoinObscure,
               onStartJourney: onStartJourney,
               isSubmitting: isSubmitting,
+              agreedToTerms: agreedToTerms,
+              onAgreedToTermsChanged: onAgreedToTermsChanged,
             ),
         ],
       ),
@@ -991,6 +976,8 @@ class _StartJourneyPane extends StatelessWidget {
     required this.onToggleObscure,
     required this.onStartJourney,
     required this.isSubmitting,
+    required this.agreedToTerms,
+    required this.onAgreedToTermsChanged,
   });
 
   final InputDecoration Function(String label, {Widget? prefixIcon, Widget? suffixIcon}) decoration;
@@ -1001,6 +988,8 @@ class _StartJourneyPane extends StatelessWidget {
   final VoidCallback onToggleObscure;
   final VoidCallback onStartJourney;
   final bool isSubmitting;
+  final bool agreedToTerms;
+  final ValueChanged<bool> onAgreedToTermsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1060,7 +1049,7 @@ class _StartJourneyPane extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: isSubmitting ? null : onStartJourney,
+            onPressed: (isSubmitting || !agreedToTerms) ? null : onStartJourney,
             icon: isSubmitting
                 ? const SizedBox(
                     width: 14,
@@ -1081,11 +1070,68 @@ class _StartJourneyPane extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
+        _AgreementNotice(value: agreedToTerms, onChanged: onAgreedToTermsChanged),
+        const SizedBox(height: 14),
         Text(
           'Pathway setup comes right after — check your email to confirm your account first.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11.5, color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+/// A real, unticked-by-default consent checkbox with live links — GDPR's
+/// Planet49 ruling (and the EDPB guidance following it) is explicit that a
+/// pre-ticked box, or agreement implied just by clicking submit, isn't
+/// valid consent. This has to start unchecked and be tapped affirmatively.
+class _AgreementNotice extends StatelessWidget {
+  const _AgreementNotice({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final linkStyle = const TextStyle(
+      color: AppColors.teal,
+      fontSize: 11.5,
+      fontWeight: FontWeight.w600,
+      decoration: TextDecoration.underline,
+    );
+    final plainStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11.5, color: AppColors.textMuted);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 20,
+          height: 20,
+          child: Checkbox(
+            value: value,
+            onChanged: (v) => onChanged(v ?? false),
+            activeColor: AppColors.teal,
+            side: const BorderSide(color: AppColors.hairlineStrong),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () => onChanged(!value),
+                child: Text('I am at least 16 years old and I agree to the ', style: plainStyle),
+              ),
+              GestureDetector(onTap: () => context.go('/terms'), child: Text('Terms of Service', style: linkStyle)),
+              GestureDetector(onTap: () => onChanged(!value), child: Text(' and ', style: plainStyle)),
+              GestureDetector(onTap: () => context.go('/privacy'), child: Text('Privacy Policy', style: linkStyle)),
+              GestureDetector(onTap: () => onChanged(!value), child: Text('.', style: plainStyle)),
+            ],
+          ),
         ),
       ],
     );

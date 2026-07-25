@@ -2,14 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../services/auth_service.dart';
+import '../services/push_notification_service.dart';
 import '../state/notification_prefs_state.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/floating_card.dart';
 import '../widgets/page_shell.dart';
 
-class AccountSettingsScreen extends ConsumerWidget {
+class AccountSettingsScreen extends ConsumerStatefulWidget {
   const AccountSettingsScreen({super.key});
+
+  @override
+  ConsumerState<AccountSettingsScreen> createState() => _AccountSettingsScreenState();
+}
+
+class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
+  bool _requestingPush = false;
 
   Future<void> _showDeleteDialog(BuildContext context) async {
     final deleted = await showDialog<bool>(
@@ -22,8 +30,29 @@ class AccountSettingsScreen extends ConsumerWidget {
     }
   }
 
+  /// Turning push ON has to actually request browser permission and
+  /// register a real device token before the preference is allowed to
+  /// flip true — otherwise this is the exact "looks enabled but isn't"
+  /// trap already fixed elsewhere in this screen tonight. Turning it off
+  /// never fails, so it just updates the preference directly.
+  Future<void> _setPushEnabled(bool value) async {
+    if (!value) {
+      ref.read(notificationPrefsProvider.notifier).setPushEnabled(false);
+      return;
+    }
+    setState(() => _requestingPush = true);
+    try {
+      await PushNotificationService.requestAndRegister();
+      ref.read(notificationPrefsProvider.notifier).setPushEnabled(true);
+    } on PushNotificationException catch (e) {
+      if (mounted) AppSnackBar.show(context, e.message);
+    } finally {
+      if (mounted) setState(() => _requestingPush = false);
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final prefs = ref.watch(notificationPrefsProvider);
     return PageShell(
       pageTitle: 'Account settings',
@@ -54,8 +83,23 @@ class AccountSettingsScreen extends ConsumerWidget {
                 _SettingsSwitchRow(
                   label: 'Push notifications',
                   value: prefs.pushEnabled,
-                  onChanged: (v) => ref.read(notificationPrefsProvider.notifier).setPushEnabled(v),
+                  onChanged: _requestingPush ? null : _setPushEnabled,
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          FloatingCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Legal', style: _label(context)),
+                const SizedBox(height: 12),
+                _LegalLinkRow(label: 'Terms of Service', onTap: () => context.go('/terms')),
+                const SizedBox(height: 10),
+                _LegalLinkRow(label: 'Privacy Policy', onTap: () => context.go('/privacy')),
+                const SizedBox(height: 10),
+                _LegalLinkRow(label: 'About us', onTap: () => context.go('/about')),
               ],
             ),
           ),
@@ -102,6 +146,31 @@ class AccountSettingsScreen extends ConsumerWidget {
       .copyWith(fontSize: 11, color: AppColors.textMuted, letterSpacing: 0.6);
 }
 
+class _LegalLinkRow extends StatelessWidget {
+  const _LegalLinkRow({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(label, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SettingsSwitchRow extends StatelessWidget {
   const _SettingsSwitchRow({
     required this.label,
@@ -111,7 +180,7 @@ class _SettingsSwitchRow extends StatelessWidget {
 
   final String label;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) {

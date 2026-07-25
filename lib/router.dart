@@ -11,9 +11,11 @@ import 'screens/forgot_password_screen.dart';
 import 'screens/gaps_overview_screen.dart';
 import 'screens/landing_item_detail_screen.dart';
 import 'screens/landing_overview_screen.dart';
+import 'screens/legal_reaccept_screen.dart';
 import 'screens/licensing_registry_screen.dart';
 import 'screens/pathway_certificate_screen.dart';
 import 'screens/pathway_edit_screen.dart';
+import 'screens/privacy_policy_screen.dart';
 import 'screens/profile_edit_screen.dart';
 import 'screens/profile_picture_screen.dart';
 import 'screens/public_certificate_screen.dart';
@@ -21,6 +23,7 @@ import 'screens/registration_tracker_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/task_detail_screen.dart';
 import 'screens/tasks_overview_screen.dart';
+import 'screens/terms_of_service_screen.dart';
 
 /// A plain fade instead of go_router's default platform transition — with
 /// the rotating backdrop now living once above the router (see main.dart),
@@ -148,6 +151,18 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/forgot-password',
       pageBuilder: (context, state) => _fadePage(state: state, child: const ForgotPasswordScreen()),
+    ),
+    GoRoute(
+      path: '/terms',
+      pageBuilder: (context, state) => _fadePage(state: state, child: const TermsOfServiceScreen()),
+    ),
+    GoRoute(
+      path: '/privacy',
+      pageBuilder: (context, state) => _fadePage(state: state, child: const PrivacyPolicyScreen()),
+    ),
+    GoRoute(
+      path: '/legal/reaccept',
+      pageBuilder: (context, state) => _fadePage(state: state, child: const LegalReacceptScreen()),
     ),
   ],
 );
