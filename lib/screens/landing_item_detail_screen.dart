@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import '../data/sample_dashboard_data.dart';
 import '../theme/app_colors.dart';
 import '../widgets/floating_card.dart';
-import '../widgets/ghost_button.dart';
 import '../widgets/page_shell.dart';
 
 class LandingItemDetailScreen extends StatelessWidget {
@@ -60,8 +59,6 @@ class LandingItemDetailScreen extends StatelessWidget {
                   item.description,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
                 ),
-                const SizedBox(height: 24),
-                GhostButton(label: 'Explore providers', color: AppColors.gold),
               ],
             ),
           ),

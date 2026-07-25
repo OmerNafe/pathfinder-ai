@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/auth_service.dart';
+import '../services/supabase_service.dart';
 
 const maritalStatusOptions = [
   'Single',
@@ -41,6 +43,10 @@ class ProfileData {
   final String maritalStatus;
   final int? yearsOfExperience;
   final String highestQualification;
+
+  /// Session-local only — profile picture upload to Supabase Storage isn't
+  /// wired up yet, so this doesn't survive a refresh. Everything else on
+  /// this page does.
   final Uint8List? avatarBytes;
 
   ProfileData copyWith({
@@ -70,18 +76,50 @@ class ProfileData {
   }
 }
 
+/// Same pattern as PathwayNotifier: synchronous with background
+/// hydrate/persist. Previously this returned fixed placeholder data
+/// ("Applicant Name", "Qatar") for every signed-in user and never saved
+/// edits — real per-user data now, mirroring pathway_state.dart.
 class ProfileNotifier extends Notifier<ProfileData> {
   @override
   ProfileData build() {
-    return const ProfileData(
-      fullName: 'Applicant Name',
-      email: 'you@example.com',
+    _hydrate();
+    return ProfileData(
+      fullName: '',
+      email: AuthService.currentUser?.email ?? '',
       phone: '',
       nationality: '',
-      countryOfResidence: 'Qatar',
-      maritalStatus: 'Single',
-      highestQualification: "Bachelor's Degree",
+      countryOfResidence: '',
+      maritalStatus: maritalStatusOptions.first,
+      highestQualification: highestQualificationOptions.first,
     );
+  }
+
+  Future<void> _hydrate() async {
+    if (!SupabaseService.isReady) return;
+    final userId = AuthService.currentUser?.id;
+    if (userId == null) return;
+    try {
+      final row = await SupabaseService.client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+      if (row == null) return;
+      final dobRaw = row['date_of_birth'] as String?;
+      state = state.copyWith(
+        fullName: row['full_name'] as String? ?? '',
+        phone: row['phone'] as String? ?? '',
+        dateOfBirth: dobRaw != null ? DateTime.tryParse(dobRaw) : null,
+        nationality: row['nationality'] as String? ?? '',
+        countryOfResidence: row['country_of_residence'] as String? ?? '',
+        maritalStatus: row['marital_status'] as String? ?? maritalStatusOptions.first,
+        yearsOfExperience: row['years_of_experience'] as int?,
+        highestQualification: row['highest_qualification'] as String? ?? highestQualificationOptions.first,
+      );
+    } catch (_) {
+      // Stay on defaults — see class doc.
+    }
   }
 
   void updateDetails({
@@ -106,6 +144,27 @@ class ProfileNotifier extends Notifier<ProfileData> {
       yearsOfExperience: yearsOfExperience,
       highestQualification: highestQualification,
     );
+    _persist();
+  }
+
+  Future<void> _persist() async {
+    if (!SupabaseService.isReady) return;
+    final userId = AuthService.currentUser?.id;
+    if (userId == null) return;
+    try {
+      await SupabaseService.client.from('profiles').update({
+        'full_name': state.fullName,
+        'phone': state.phone,
+        'date_of_birth': state.dateOfBirth?.toIso8601String().split('T').first,
+        'nationality': state.nationality,
+        'country_of_residence': state.countryOfResidence,
+        'marital_status': state.maritalStatus,
+        'years_of_experience': state.yearsOfExperience,
+        'highest_qualification': state.highestQualification,
+      }).eq('id', userId);
+    } catch (_) {
+      // Optimistic local state stands even if the write failed — see class doc.
+    }
   }
 
   void updateAvatar(Uint8List bytes) {
