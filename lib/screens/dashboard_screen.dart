@@ -14,6 +14,7 @@ import '../widgets/eta_estimate_card.dart';
 import '../widgets/floating_card.dart';
 import '../widgets/gap_alert_card.dart';
 import '../widgets/growth_trophy.dart';
+import '../widgets/journey_path_hero.dart';
 import '../widgets/landing_card.dart';
 import '../widgets/page_shell.dart';
 import '../widgets/quick_nav_bar.dart';
@@ -21,6 +22,7 @@ import '../widgets/section_title.dart';
 import '../widgets/setup_required_card.dart';
 import '../widgets/stage_rail.dart';
 import '../widgets/task_row.dart';
+import '../widgets/today_task_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -110,11 +112,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           else if (isMobile)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ..._mainColumn(context),
-                const SizedBox(height: 20),
-                ..._sideColumn(context, pathway, growth),
-              ],
+              children: _mobileTodayColumn(context, pathway, growth),
             )
           else
             Row(
@@ -211,6 +209,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       EtaEstimateCard(targetCountry: pathway.targetCountry, compact: true),
       const SizedBox(height: 20),
       _GrowthMiniCard(growth: growth.value, onTap: _showGrowthDialog),
+    ];
+  }
+
+  /// The mobile "quick peek" home: the route hero first, one real task to
+  /// act on right now, then everything else a scroll away — deliberately
+  /// not the desktop layout stacked, see journey_path_hero.dart and
+  /// today_task_card.dart for why.
+  List<Widget> _mobileTodayColumn(BuildContext context, PathwayData pathway, AsyncValue<GrowthState> growth) {
+    final tasks = ref.watch(pathwayTasksProvider);
+    if (tasks.isEmpty) return const [];
+
+    final rejected = tasks.where((t) => t.status == TaskStatus.rejected);
+    final pending = tasks.where((t) => t.status == TaskStatus.pending);
+    final priorityTask = rejected.isNotEmpty ? rejected.first : (pending.isNotEmpty ? pending.first : tasks.first);
+    final verifiedCount = tasks.where((t) => t.status == TaskStatus.verified).length;
+
+    return [
+      JourneyPathHero(items: buildStageRailItems('/gaps')),
+      const SizedBox(height: 20),
+      TodayTaskCard(task: priorityTask),
+      const SizedBox(height: 20),
+      Row(
+        children: [
+          Expanded(child: _GrowthMiniCard(growth: growth.value, onTap: _showGrowthDialog)),
+        ],
+      ),
+      const SizedBox(height: 20),
+      _CertificateTeaserCard(
+        onTap: () => context.go('/certificate'),
+        verifiedCount: verifiedCount,
+        totalCount: tasks.length,
+      ),
+      const SizedBox(height: 20),
+      Center(
+        child: TextButton(
+          onPressed: () => context.go('/tasks'),
+          child: const Text('View full blueprint →', style: TextStyle(fontSize: 13)),
+        ),
+      ),
     ];
   }
 }

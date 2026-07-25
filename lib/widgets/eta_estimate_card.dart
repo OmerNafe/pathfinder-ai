@@ -54,7 +54,13 @@ class EtaEstimateCard extends StatelessWidget {
             children: [
               const Icon(Icons.hourglass_top_rounded, color: AppColors.teal, size: 20),
               const SizedBox(width: 10),
-              Text('Typical timeline', style: Theme.of(context).textTheme.titleLarge),
+              Flexible(
+                child: Text(
+                  'Typical timeline',
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),

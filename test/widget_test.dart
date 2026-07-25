@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +9,14 @@ import 'package:pathfinder_ai/state/pathway_state.dart';
 import 'package:pathfinder_ai/state/pathway_tasks.dart';
 
 void main() {
+  // appRouter is a module-level singleton shared across every test in this
+  // file — without this, whatever route the previous test navigated to
+  // (e.g. /certificate) is still "current" for one stale frame at the
+  // start of the next test, before that test's own navigation takes
+  // effect. Usually harmless, but it can trigger real layout errors
+  // belonging to the wrong test (this bit a mobile-viewport test once).
+  setUp(() => appRouter.go('/'));
+
   testWidgets('Dashboard renders the pathway banner', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: PathFinderApp()));
     await tester.pump();
@@ -157,7 +166,12 @@ void main() {
 
     appRouter.go('/tasks');
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    // Long enough to fully clear the 220ms page fade transition — a
+    // shorter partial pump can leave the outgoing page's content still
+    // mounted alongside the incoming page's, which is exactly what
+    // happened here once the dashboard itself started rendering real
+    // "No gaps identified yet" content too (see the setUp above).
+    await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
     expect(find.textContaining('DataFlow'), findsNothing);
     expect(find.textContaining('ScribeLab'), findsNothing);
@@ -166,7 +180,7 @@ void main() {
 
     appRouter.go('/gaps');
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
     expect(find.text('No gaps identified yet'), findsOneWidget);
     // The old fake gap ("6.0 TRF uploaded — deficit detected...") must be
@@ -207,5 +221,35 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.textContaining("backend isn't connected"), findsWidgets);
+  });
+
+  // The mobile "Today" layout (JourneyPathHero + TodayTaskCard) only
+  // renders below the 700px breakpoint — none of the tests above exercise
+  // it since WidgetTester's default surface is 800x600. This confirms it
+  // renders cleanly for a freshly set-up pathway, a rejected-task pathway,
+  // and a fully-verified pathway (the three distinct TodayTaskCard states).
+  testWidgets('Mobile Today layout renders for pending, rejected, and fully-verified states',
+      (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const PathFinderApp()),
+    );
+    await tester.pump();
+
+    container.read(pathwayProvider.notifier).updatePathway(
+          occupation: 'Registered Nurse',
+          targetCountry: 'Canada',
+        );
+
+    appRouter.go('/');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.takeException(), isNull);
+    expect(find.text("Today's task"), findsOneWidget);
   });
 }
