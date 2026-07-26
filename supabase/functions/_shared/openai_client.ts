@@ -12,48 +12,24 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 // left to fail with an opaque error.
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
-const RESULT_SCHEMA = {
-  type: "object",
-  // OpenAI's structured-output json_schema format rejects any object schema
-  // that defines "properties" without also explicitly closing it with
-  // additionalProperties: false at that same level -- this was the actual
-  // cause of every "AI review failed" 502 (confirmed via the debugError
-  // written to ai_review_result: "'additionalProperties' is required to be
-  // supplied and to be false"). keyValues below is deliberately exempt --
-  // it has no "properties" key of its own (it's a pure string-to-string
-  // dictionary via additionalProperties), which is a different schema shape
-  // OpenAI does allow to stay open.
-  additionalProperties: false,
-  properties: {
-    documentType: {
-      type: ["string", "null"],
-      description: "A short label for what kind of document this is, e.g. 'passport', 'degree transcript'.",
-    },
-    detectedName: {
-      type: ["string", "null"],
-      description: "The full name printed on the document, if any is visible.",
-    },
-    detectedDates: {
-      type: "array",
-      items: { type: "string" },
-      description: "Any dates printed on the document, as they appear (ISO format if unambiguous).",
-    },
-    keyValues: {
-      type: "object",
-      additionalProperties: { type: "string" },
-      description: "Other labeled fields visible on the document, e.g. institution, credential number, issuing body.",
-    },
-    legible: {
-      type: "boolean",
-      description: "False if the document is too blurry, dark, cropped, or corrupted to read reliably.",
-    },
-    legibilityIssue: {
-      type: ["string", "null"],
-      description: "Plain-English reason when legible is false; null when legible is true.",
-    },
-  },
-  required: ["documentType", "detectedName", "detectedDates", "keyValues", "legible", "legibilityIssue"],
-};
+// OpenAI's structured-output json_schema format went through two rounds of
+// rejecting this exact shape -- first demanding additionalProperties: false
+// at the root, then rejecting keyValues' open string-to-string dictionary
+// entirely once that was added ("'required' is required to be... every key
+// in properties. Extra required key 'keyValues' supplied"). Rather than
+// keep guessing at validator quirks, this uses plain json_object mode (just
+// "return valid JSON") and leans on validateExtractedFields below as the
+// real shape guarantee -- consistent with this app's actual rule
+// throughout: the model's output is never trusted just because it parsed,
+// only after every field is independently confirmed.
+const SHAPE_DESCRIPTION = `{
+  "documentType": string or null — a short label, e.g. "passport", "degree transcript",
+  "detectedName": string or null — the full name printed on the document, if visible,
+  "detectedDates": string[] — every date printed on the document, as it appears,
+  "keyValues": object mapping string to string — other labeled fields visible, e.g. institution, credential number, issuing body,
+  "legible": boolean — false if the document is too blurry, dark, cropped, or corrupted to read reliably,
+  "legibilityIssue": string or null — plain-English reason when legible is false, null when legible is true
+}`;
 
 /**
  * The only function every caller uses for extraction. Sends the uploaded
@@ -95,10 +71,11 @@ export async function extractDocumentFields({
   const base64 = encodeBase64(fileBytes);
   const promptText =
     "You are reviewing a document a skilled-migration applicant uploaded to satisfy this " +
-    `requirement: "${requirementDescription}". Extract exactly the fields in the response ` +
-    "schema. Only report what is actually visible on the document -- never guess or invent a " +
-    "name, date, or value that isn't legibly present. If the scan is too blurry, dark, cropped, " +
-    "or otherwise unreadable to extract fields with confidence, set legible to false and explain " +
+    `requirement: "${requirementDescription}". Respond with ONLY a single JSON object, no ` +
+    `other text, matching exactly this shape:\n${SHAPE_DESCRIPTION}\n\n` +
+    "Only report what is actually visible on the document -- never guess or invent a name, " +
+    "date, or value that isn't legibly present. If the scan is too blurry, dark, cropped, or " +
+    "otherwise unreadable to extract fields with confidence, set legible to false and explain " +
     "why in legibilityIssue instead of guessing at the content.";
 
   const fileContent = isPdf
@@ -120,11 +97,7 @@ export async function extractDocumentFields({
         },
       ],
       text: {
-        format: {
-          type: "json_schema",
-          name: "extracted_document_fields",
-          schema: RESULT_SCHEMA,
-        },
+        format: { type: "json_object" },
       },
     }),
   });
