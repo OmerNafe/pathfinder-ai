@@ -89,12 +89,14 @@ Deno.serve(async (req: Request) => {
       // A real extraction failure (OpenAI request/parsing error) must also
       // leave the document in a terminal, honest state — not stuck on
       // "reviewing" forever, which is what happened here before this
-      // branch existed.
+      // branch existed. The real error is stored (debugError) for
+      // diagnosis but never shown in the UI, which only ever reads the
+      // "error" key -- the client-facing message stays generic on purpose.
       console.error("analyze-document: extraction failed", e);
       const message = "AI review failed — please try again.";
       await admin.from("documents").update({
         ai_review_status: "failed",
-        ai_review_result: { error: message },
+        ai_review_result: { error: message, debugError: e instanceof Error ? e.message : String(e) },
       }).eq("id", documentId);
       return jsonResponse({ error: message }, 502);
     }

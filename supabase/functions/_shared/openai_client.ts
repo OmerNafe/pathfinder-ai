@@ -14,6 +14,16 @@ const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/we
 
 const RESULT_SCHEMA = {
   type: "object",
+  // OpenAI's structured-output json_schema format rejects any object schema
+  // that defines "properties" without also explicitly closing it with
+  // additionalProperties: false at that same level -- this was the actual
+  // cause of every "AI review failed" 502 (confirmed via the debugError
+  // written to ai_review_result: "'additionalProperties' is required to be
+  // supplied and to be false"). keyValues below is deliberately exempt --
+  // it has no "properties" key of its own (it's a pure string-to-string
+  // dictionary via additionalProperties), which is a different schema shape
+  // OpenAI does allow to stay open.
+  additionalProperties: false,
   properties: {
     documentType: {
       type: ["string", "null"],
