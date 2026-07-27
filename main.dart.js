@@ -32564,9 +32564,9 @@ _.e=e
 _.f=f},
 Zi:function Zi(a,b){this.a=a
 this.b=b},
-z_(a,b,c){return A.bhG(a,b,c)},
-bhG(a2,a3,a4){var s=0,r=A.u(t.mn),q,p=2,o=[],n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1
-var $async$z_=A.p(function(a5,a6){if(a5===1){o.push(a6)
+z_(a,b,c,d,e){return A.bhG(a,b,c,d,e)},
+bhG(a2,a3,a4,a5,a6){var s=0,r=A.u(t.mn),q,p=2,o=[],n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1
+var $async$z_=A.p(function(a7,a8){if(a7===1){o.push(a8)
 s=p}for(;;)switch(s){case 0:if(!$.dc){q=B.WZ
 s=1
 break}d=$.bx().b
@@ -32579,26 +32579,26 @@ s=1
 break}d=$.bx().b
 d===$&&A.a()
 m=d
-l=n+"/"+a4+"-"+a3
+l=n+"/"+a5+"-"+a3
 p=4
 d=m.at
 d===$&&A.a()
 s=7
 return A.m(d.dd("documents").Bj(l,a2,new A.GD(!0,A.bbv(a3))),$async$z_)
 case 7:d=t.N
-c=m.dd("documents").T3(A.a4(["user_id",n,"requirement_id",a4,"file_name",a3,"storage_path",l,"size_bytes",a2.length,"ai_review_status","pending","ai_review_result",null],d,t.X),"user_id,requirement_id").qG()
+c=m.dd("documents").T3(A.a4(["user_id",n,"requirement_id",a5,"file_name",a3,"storage_path",l,"size_bytes",a2.length,"ai_review_status","pending","ai_review_result",null],d,t.X),"user_id,requirement_id").qG()
 b=A.cp(c.b,d,d)
 b.m(0,"Accept","application/vnd.pgrst.object+json")
 a=t.a
 s=8
 return A.m(A.awc(c.aly(b,a,a,a),a),$async$z_)
-case 8:k=a6
+case 8:k=a8
 j=A.aE(J.co(k,"id"))
 a=m.as
 a===$&&A.a()
 s=9
-return A.m(a.a82("analyze-document",A.a4(["documentId",j],d,d)),$async$z_)
-case 9:i=a6
+return A.m(a.a82("analyze-document",A.a4(["documentId",j,"requirementTitle",a6,"requirementDescription",a4],d,d)),$async$z_)
+case 9:i=a8
 h=i.a
 if(i.b!==200){g=t.f.b(h)&&typeof h.h(0,"error")=="string"?A.aE(h.h(0,"error")):"Document review failed."
 q=new A.qm(j,l,null,g)
@@ -109765,65 +109765,66 @@ $0(){return A.bq(this.a).b3("/registration",null)},
 $S:0}
 A.a4o.prototype={
 uE(a,b){return this.axe(a,b)},
-axe(a,a0){var s=0,r=A.u(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h,g,f,e,d,c,b
-var $async$uE=A.p(function(a1,a2){if(a1===1){o.push(a2)
-s=p}for(;;)switch(s){case 0:c=null
+axe(a0,a1){var s=0,r=A.u(t.H),q,p=2,o=[],n=this,m,l,k,j,i,h,g,f,e,d,c,b,a
+var $async$uE=A.p(function(a2,a3){if(a2===1){o.push(a3)
+s=p}for(;;)switch(s){case 0:b=null
 p=4
 s=7
 return A.m(A.b51(B.xL,!0),$async$uE)
-case 7:c=a2
+case 7:b=a3
 p=2
 s=6
 break
 case 4:p=3
-b=o.pop()
-m=A.W(b)
+a=o.pop()
+m=A.W(a)
 A.aYO().$1("Document upload: file picker threw: "+A.i(m))
-if(a.e==null){s=1
-break}A.de(a,"Upload failed: "+A.i(m))
+if(a0.e==null){s=1
+break}A.de(a0,"Upload failed: "+A.i(m))
 s=1
 break
 s=6
 break
 case 3:s=2
 break
-case 6:if(c==null||J.h2(c.a)){s=1
-break}k=J.y0(c.a)
+case 6:if(b==null||J.h2(b.a)){s=1
+break}k=J.y0(b.a)
 j=k.b
 i=k.e
 h=A.bbU(j,i)
-if(h!=null){if(a.e==null){s=1
-break}A.de(a,h)
+if(h!=null){if(a0.e==null){s=1
+break}A.de(a0,h)
 s=1
-break}if(a.e==null){s=1
+break}if(a0.e==null){s=1
 break}s=8
-return A.m(A.E1(a),$async$uE)
-case 8:if(!a2){if(a.e==null){s=1
-break}A.de(a,u.o)
+return A.m(A.E1(a0),$async$uE)
+case 8:if(!a3){if(a0.e==null){s=1
+break}A.de(a0,u.o)
 s=1
-break}if(a.e==null){s=1
-break}g=a0.cw($.SF().gf5(),t.WF)
-f=n.e.a
-g.Uf(f,new A.lV(j,i,null,null,B.la,null,null))
-e=k.c
-if(e==null){if(a.e==null){s=1
-break}A.de(a,j+" uploaded")
+break}if(a0.e==null){s=1
+break}g=a1.cw($.SF().gf5(),t.WF)
+f=n.e
+e=f.a
+g.Uf(e,new A.lV(j,i,null,null,B.la,null,null))
+d=k.c
+if(d==null){if(a0.e==null){s=1
+break}A.de(a0,j+" uploaded")
 s=1
-break}g.aaR(f,B.pX)
-if(a.e==null){s=1
-break}A.de(a,j+" uploaded \u2014 reviewing\u2026")
+break}g.aaR(e,B.pX)
+if(a0.e==null){s=1
+break}A.de(a0,j+" uploaded \u2014 reviewing\u2026")
 s=9
-return A.m(A.z_(e,j,f),$async$uE)
-case 9:d=a2
-if(a.e==null){s=1
-break}j=d.a
-if(j==null&&d.d==null){s=1
-break}i=d.d
-if(i!=null){g.aOq(f,i,B.lb,d.b)
-A.de(a,i)
+return A.m(A.z_(d,j,f.c,e,f.b),$async$uE)
+case 9:c=a3
+if(a0.e==null){s=1
+break}j=c.a
+if(j==null&&c.d==null){s=1
+break}i=c.d
+if(i!=null){g.aOq(e,i,B.lb,c.b)
+A.de(a0,i)
 s=1
-break}i=d.b
-g.aOr(f,j,d.c,B.pY,i)
+break}i=c.b
+g.aOr(e,j,c.c,B.pY,i)
 case 1:return A.r(q,r)
 case 2:return A.q(o.at(-1),r)}})
 return A.t($async$uE,r)},
@@ -113402,28 +113403,28 @@ A.LS.prototype={
 a3(){return new A.abi()}}
 A.abi.prototype={
 nl(a){return this.akq(a)},
-akq(a4){var s=0,r=A.u(t.H),q,p=2,o=[],n=[],m=this,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3
-var $async$nl=A.p(function(a5,a6){if(a5===1){o.push(a6)
+akq(a5){var s=0,r=A.u(t.H),q,p=2,o=[],n=[],m=this,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4
+var $async$nl=A.p(function(a6,a7){if(a6===1){o.push(a7)
 s=p}for(;;)switch(s){case 0:m.R(new A.aUU(m))
 p=4
 l=null
 k=null
-s=a4?7:9
+s=a5?7:9
 break
 case 7:s=10
 return A.m(new A.WS().aMc(85,B.yo),$async$nl)
-case 10:j=a6
+case 10:j=a7
 if(j==null){n=[1]
 s=5
 break}l=j.b
 s=11
 return A.m(j.It(),$async$nl)
-case 11:k=a6
+case 11:k=a7
 s=8
 break
 case 9:s=12
 return A.m(A.b51(B.xL,!0),$async$nl)
-case 12:i=a6
+case 12:i=a7
 if(i==null||J.h2(i.a)){n=[1]
 s=5
 break}h=J.y0(i.a)
@@ -113444,7 +113445,7 @@ if(a==null){n=[1]
 s=5
 break}s=13
 return A.m(A.E1(a),$async$nl)
-case 13:f=a6
+case 13:f=a7
 if(!f){a=m.c
 if(a!=null)A.de(a,u.o)
 n=[1]
@@ -113463,9 +113464,11 @@ a1=m.c
 a1.toString
 A.de(a1,a0+" uploaded \u2014 reviewing\u2026")
 a0=l
+a1=k
+a2=m.a.d
 s=14
-return A.m(A.z_(k,a0,e),$async$nl)
-case 14:c=a6
+return A.m(A.z_(a1,a0,a2.d,e,a2.c),$async$nl)
+case 14:c=a7
 if(m.c==null){n=[1]
 s=5
 break}a0=c
@@ -113486,8 +113489,8 @@ n.push(6)
 s=5
 break
 case 4:p=3
-a3=o.pop()
-b=A.W(a3)
+a4=o.pop()
+b=A.W(a4)
 if(m.c!=null){a=A.i(b)
 a0=m.c
 a0.toString
