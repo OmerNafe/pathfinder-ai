@@ -239,3 +239,131 @@ function validateExtractedFields(value: unknown): ExtractedDocumentFields {
     documentTypeMismatchReason,
   };
 }
+
+const PROFILE_SHAPE_DESCRIPTION = `{
+  "summary": string or null — a one or two sentence professional summary, only if the CV states or clearly implies one,
+  "workExperience": array of { "company": string, "title": string, "startDate": string or null, "endDate": string or null, "description": string or null },
+  "education": array of { "institution": string, "degree": string, "fieldOfStudy": string or null, "startDate": string or null, "endDate": string or null },
+  "skills": string[] — individual skills listed on the CV,
+  "certifications": array of { "name": string, "issuer": string or null, "date": string or null }
+}`;
+
+/**
+ * The foundation for a real applicant profile, pulled from a reviewed CV --
+ * not the job-matching/soft-landing feature itself (that needs a real job
+ * listings source and matching logic, which don't exist yet), just the
+ * actual structured extraction and storage. Only ever called for a
+ * document that's already been confirmed legible and the right type by
+ * extractDocumentFields -- there's no point profiling an illegible file or
+ * one that isn't actually a CV.
+ */
+export async function extractApplicantProfile({
+  fileBytes,
+  mimeType,
+}: {
+  fileBytes: Uint8Array;
+  mimeType: string;
+}): Promise<ApplicantProfileExtraction> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) {
+    throw new NotConfiguredError("OPENAI_API_KEY is not set — profile extraction isn't connected yet.");
+  }
+
+  const isPdf = mimeType === "application/pdf";
+  const base64 = encodeBase64(fileBytes);
+  const promptText =
+    "This is a skilled-migration applicant's CV/resume. Extract their work experience, " +
+    "education, skills, and certifications, to help build their profile for later use in " +
+    "job applications. Only report what is actually printed on the CV -- never invent an " +
+    "employer, dates, a skill, or a qualification that isn't legibly present. If a field " +
+    "genuinely isn't on the CV, leave it null or an empty array/list rather than guessing.\n\n" +
+    `Respond with ONLY a single JSON object, no other text, matching exactly this shape:\n${PROFILE_SHAPE_DESCRIPTION}`;
+
+  const parsed = await callOpenAiForJson({ apiKey, promptText, fileBytes: base64, mimeType, isPdf });
+  return validateApplicantProfile(parsed);
+}
+
+function validateApplicantProfile(value: unknown): ApplicantProfileExtraction {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("OpenAI profile response was not a JSON object");
+  }
+  const v = value as Record<string, unknown>;
+
+  const summary = v.summary;
+  if (summary !== null && summary !== undefined && typeof summary !== "string") {
+    throw new Error("OpenAI profile response field summary had an unexpected shape");
+  }
+
+  const workExperience = validateArray(v.workExperience, "workExperience", (entry): WorkExperienceEntry => {
+    const e = requireObject(entry, "workExperience entry");
+    return {
+      company: requireString(e.company, "workExperience.company"),
+      title: requireString(e.title, "workExperience.title"),
+      startDate: optionalString(e.startDate, "workExperience.startDate"),
+      endDate: optionalString(e.endDate, "workExperience.endDate"),
+      description: optionalString(e.description, "workExperience.description"),
+    };
+  });
+
+  const education = validateArray(v.education, "education", (entry): EducationEntry => {
+    const e = requireObject(entry, "education entry");
+    return {
+      institution: requireString(e.institution, "education.institution"),
+      degree: requireString(e.degree, "education.degree"),
+      fieldOfStudy: optionalString(e.fieldOfStudy, "education.fieldOfStudy"),
+      startDate: optionalString(e.startDate, "education.startDate"),
+      endDate: optionalString(e.endDate, "education.endDate"),
+    };
+  });
+
+  const skillsRaw = v.skills;
+  if (!Array.isArray(skillsRaw) || skillsRaw.some((s) => typeof s !== "string")) {
+    throw new Error("OpenAI profile response field skills had an unexpected shape");
+  }
+
+  const certifications = validateArray(v.certifications, "certifications", (entry): CertificationEntry => {
+    const e = requireObject(entry, "certifications entry");
+    return {
+      name: requireString(e.name, "certifications.name"),
+      issuer: optionalString(e.issuer, "certifications.issuer"),
+      date: optionalString(e.date, "certifications.date"),
+    };
+  });
+
+  return {
+    summary: (summary as string | null) ?? null,
+    workExperience,
+    education,
+    skills: skillsRaw as string[],
+    certifications,
+  };
+}
+
+function validateArray<T>(value: unknown, field: string, mapEntry: (entry: unknown) => T): T[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`OpenAI profile response field ${field} had an unexpected shape`);
+  }
+  return value.map(mapEntry);
+}
+
+function requireObject(value: unknown, field: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`OpenAI profile response ${field} had an unexpected shape`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    throw new Error(`OpenAI profile response field ${field} had an unexpected shape`);
+  }
+  return value;
+}
+
+function optionalString(value: unknown, field: string): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") {
+    throw new Error(`OpenAI profile response field ${field} had an unexpected shape`);
+  }
+  return value;
+}

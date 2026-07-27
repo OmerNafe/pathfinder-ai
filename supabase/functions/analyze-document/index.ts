@@ -1,8 +1,14 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { supabaseAdmin } from "../_shared/supabase_admin.ts";
-import { extractDocumentFields, NotConfiguredError } from "../_shared/openai_client.ts";
+import { extractApplicantProfile, extractDocumentFields, NotConfiguredError } from "../_shared/openai_client.ts";
 import { compareExtractedDocument } from "../_shared/compare_document.ts";
 import { logAiCall } from "../_shared/audit_log.ts";
+
+// The one, specific checklist slot this app treats as "the CV" -- see
+// core_cv in lib/data/document_requirements.dart. Profile extraction only
+// ever runs for this requirement; there's no point profiling a passport
+// or a transcript.
+const CV_REQUIREMENT_ID = "core_cv";
 
 /**
  * Phase 1 — turns "documents saved" into real feedback. Takes a
@@ -128,6 +134,31 @@ Deno.serve(async (req: Request) => {
       ai_review_status: "reviewed",
       ai_review_result: result,
     }).eq("id", documentId);
+
+    // Best-effort: a profile-extraction failure must never take down the
+    // document review response the client is waiting on. Only attempted
+    // for a CV that actually passed the legibility/type checks above --
+    // no point profiling an illegible file or one that isn't really a CV.
+    if (
+      doc.requirement_id === CV_REQUIREMENT_ID &&
+      extracted.legible &&
+      extracted.matchesDocumentType
+    ) {
+      try {
+        const profile = await extractApplicantProfile({ fileBytes, mimeType: fileBlob.type });
+        await admin.from("applicant_profiles").upsert({
+          user_id: userId,
+          summary: profile.summary,
+          work_experience: profile.workExperience,
+          education: profile.education,
+          skills: profile.skills,
+          certifications: profile.certifications,
+          source_document_id: documentId,
+        });
+      } catch (e) {
+        console.error("analyze-document: profile extraction failed (non-fatal)", e);
+      }
+    }
 
     return jsonResponse({ result });
   } catch (error) {
