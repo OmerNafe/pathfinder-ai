@@ -27,6 +27,8 @@ class DocumentReviewService {
     required String requirementId,
     required String fileName,
     required Uint8List bytes,
+    required String requirementTitle,
+    required String requirementDescription,
   }) async {
     if (!SupabaseService.isReady) {
       return const DocumentUploadResult();
@@ -67,7 +69,11 @@ class DocumentReviewService {
 
       final response = await client.functions.invoke(
         'analyze-document',
-        body: {'documentId': documentId},
+        body: {
+          'documentId': documentId,
+          'requirementTitle': requirementTitle,
+          'requirementDescription': requirementDescription,
+        },
       );
 
       final data = response.data;

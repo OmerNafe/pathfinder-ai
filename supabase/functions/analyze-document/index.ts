@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
     }
     const userId = userData.user.id;
 
-    const { documentId } = await req.json();
+    const { documentId, requirementTitle, requirementDescription } = await req.json();
     if (!documentId) {
       return jsonResponse({ error: "documentId is required" }, 400);
     }
@@ -74,7 +74,18 @@ Deno.serve(async (req: Request) => {
       extracted = await extractDocumentFields({
         fileBytes,
         mimeType: fileBlob.type,
-        requirementDescription: doc.requirement_id,
+        // The checklist card's real title/description (e.g. "Curriculum
+        // Vitae (CV) -- Your current, up-to-date professional CV or
+        // resume."), sent by the client -- not the bare requirement_id
+        // slug this used to pass, which gave the model nothing real to
+        // check the upload against and is the actual reason any legible
+        // file was accepted for any requirement.
+        requirementTitle: typeof requirementTitle === "string" && requirementTitle.length > 0
+          ? requirementTitle
+          : doc.requirement_id,
+        requirementDescription: typeof requirementDescription === "string" && requirementDescription.length > 0
+          ? requirementDescription
+          : "No further description was provided for this requirement.",
       });
     } catch (e) {
       if (e instanceof NotConfiguredError) {

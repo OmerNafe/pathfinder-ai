@@ -84,6 +84,8 @@ class _TodayTaskCardState extends ConsumerState<TodayTaskCard> {
         requirementId: requirementId,
         fileName: fileName,
         bytes: bytes,
+        requirementTitle: widget.task.title,
+        requirementDescription: widget.task.description,
       );
 
       if (!mounted) return;

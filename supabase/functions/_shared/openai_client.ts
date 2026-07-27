@@ -1,5 +1,11 @@
 import { encodeBase64 } from "jsr:@std/encoding@1/base64";
-import type { ExtractedDocumentFields } from "./document_review_types.ts";
+import type {
+  ApplicantProfileExtraction,
+  CertificationEntry,
+  EducationEntry,
+  ExtractedDocumentFields,
+  WorkExperienceEntry,
+} from "./document_review_types.ts";
 
 export class NotConfiguredError extends Error {}
 
@@ -23,28 +29,31 @@ const SUPPORTED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/we
 // throughout: the model's output is never trusted just because it parsed,
 // only after every field is independently confirmed.
 const SHAPE_DESCRIPTION = `{
-  "documentType": string or null — a short label, e.g. "passport", "degree transcript",
+  "documentType": string or null — a short label for what this file actually is, e.g. "passport", "CV / resume", "unrelated photo",
   "detectedName": string or null — the full name printed on the document, if visible,
   "detectedDates": string[] — every date printed on the document, as it appears,
   "keyValues": object mapping string to string — other labeled fields visible, e.g. institution, credential number, issuing body,
   "legible": boolean — false if the document is too blurry, dark, cropped, or corrupted to read reliably,
-  "legibilityIssue": string or null — plain-English reason when legible is false, null when legible is true
+  "legibilityIssue": string or null — plain-English reason when legible is false, null when legible is true,
+  "matchesDocumentType": boolean — true only if this file is actually the kind of document the requirement below describes,
+  "documentTypeMismatchReason": string or null — plain-English reason when matchesDocumentType is false (e.g. "This is a CV, not a passport"), null when it's true
 }`;
 
 /**
  * The only function every caller uses for extraction. Sends the uploaded
- * file to a vision-capable OpenAI model via the Responses API, constrained
- * to the ExtractedDocumentFields shape with a JSON schema, then validates
- * the parsed response field-by-field before returning it -- the model's
- * output is never trusted just because it parsed as JSON.
+ * file to a vision-capable OpenAI model via the Responses API, then
+ * validates the parsed response field-by-field before returning it -- the
+ * model's output is never trusted just because it parsed as JSON.
  */
 export async function extractDocumentFields({
   fileBytes,
   mimeType,
+  requirementTitle,
   requirementDescription,
 }: {
   fileBytes: Uint8Array;
   mimeType: string;
+  requirementTitle: string;
   requirementDescription: string;
 }): Promise<ExtractedDocumentFields> {
   const apiKey = Deno.env.get("OPENAI_API_KEY");
@@ -65,22 +74,51 @@ export async function extractDocumentFields({
       legibilityIssue:
         `${mimeType || "This file type"} isn't supported for AI review yet — ` +
         "try uploading a PDF, JPG, or PNG instead.",
+      matchesDocumentType: false,
+      documentTypeMismatchReason: null,
     };
   }
 
   const base64 = encodeBase64(fileBytes);
   const promptText =
     "You are reviewing a document a skilled-migration applicant uploaded to satisfy this " +
-    `requirement: "${requirementDescription}". Respond with ONLY a single JSON object, no ` +
-    `other text, matching exactly this shape:\n${SHAPE_DESCRIPTION}\n\n` +
+    `specific checklist requirement:\nTitle: "${requirementTitle}"\nWhat's expected: ` +
+    `"${requirementDescription}"\n\n` +
+    "Look carefully at what was actually uploaded and compare it against that requirement. " +
+    "Applicants sometimes upload the wrong file by mistake (a CV where a certificate was " +
+    "asked for, a random photo, someone else's document, an unrelated screenshot or bill) -- " +
+    "your job is to catch that, not to assume every upload is correct. Set matchesDocumentType " +
+    "to false whenever the file is clearly not the kind of document described above, and explain " +
+    "specifically what it looks like instead in documentTypeMismatchReason.\n\n" +
+    `Respond with ONLY a single JSON object, no other text, matching exactly this shape:\n${SHAPE_DESCRIPTION}\n\n` +
     "Only report what is actually visible on the document -- never guess or invent a name, " +
     "date, or value that isn't legibly present. If the scan is too blurry, dark, cropped, or " +
     "otherwise unreadable to extract fields with confidence, set legible to false and explain " +
     "why in legibilityIssue instead of guessing at the content.";
 
+  const parsed = await callOpenAiForJson({ apiKey, promptText, fileBytes: base64, mimeType, isPdf });
+  return validateExtractedFields(parsed);
+}
+
+/** Shared request/parse plumbing for both extractDocumentFields and
+ *  extractApplicantProfile below -- each caller supplies its own prompt and
+ *  validates the shape it gets back itself. */
+async function callOpenAiForJson({
+  apiKey,
+  promptText,
+  fileBytes,
+  mimeType,
+  isPdf,
+}: {
+  apiKey: string;
+  promptText: string;
+  fileBytes: string;
+  mimeType: string;
+  isPdf: boolean;
+}): Promise<unknown> {
   const fileContent = isPdf
-    ? { type: "input_file", filename: "document.pdf", file_data: `data:${mimeType};base64,${base64}` }
-    : { type: "input_image", image_url: `data:${mimeType};base64,${base64}` };
+    ? { type: "input_file", filename: "document.pdf", file_data: `data:${mimeType};base64,${fileBytes}` }
+    : { type: "input_image", image_url: `data:${mimeType};base64,${fileBytes}` };
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -113,14 +151,11 @@ export async function extractDocumentFields({
     throw new Error("OpenAI response did not contain any output text");
   }
 
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(rawText);
+    return JSON.parse(rawText);
   } catch {
     throw new Error("OpenAI response was not valid JSON");
   }
-
-  return validateExtractedFields(parsed);
 }
 
 /** Fallback for when output_text isn't present at the top level -- walks the
@@ -160,6 +195,8 @@ function validateExtractedFields(value: unknown): ExtractedDocumentFields {
   const keyValues = v.keyValues;
   const legible = v.legible;
   const legibilityIssue = v.legibilityIssue;
+  const matchesDocumentType = v.matchesDocumentType;
+  const documentTypeMismatchReason = v.documentTypeMismatchReason;
 
   if (documentType !== null && typeof documentType !== "string") {
     throw new Error("OpenAI response field documentType had an unexpected shape");
@@ -184,6 +221,12 @@ function validateExtractedFields(value: unknown): ExtractedDocumentFields {
   if (legibilityIssue !== null && typeof legibilityIssue !== "string") {
     throw new Error("OpenAI response field legibilityIssue had an unexpected shape");
   }
+  if (typeof matchesDocumentType !== "boolean") {
+    throw new Error("OpenAI response field matchesDocumentType had an unexpected shape");
+  }
+  if (documentTypeMismatchReason !== null && typeof documentTypeMismatchReason !== "string") {
+    throw new Error("OpenAI response field documentTypeMismatchReason had an unexpected shape");
+  }
 
   return {
     documentType,
@@ -192,5 +235,7 @@ function validateExtractedFields(value: unknown): ExtractedDocumentFields {
     keyValues: keyValues as Record<string, string>,
     legible,
     legibilityIssue,
+    matchesDocumentType,
+    documentTypeMismatchReason,
   };
 }

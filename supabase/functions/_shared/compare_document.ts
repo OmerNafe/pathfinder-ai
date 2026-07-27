@@ -22,6 +22,21 @@ export function compareExtractedDocument(extracted: ExtractedDocumentFields): Do
     };
   }
 
+  // A legible file that's simply the wrong kind of document (a CV where a
+  // certificate was asked for, an unrelated photo, someone else's
+  // paperwork) is a real, definite failure -- not "uncertain". Only a
+  // legible file that actually looks like what was asked for is
+  // provisional.
+  if (!extracted.matchesDocumentType) {
+    return {
+      extracted,
+      matchesRequirement: false,
+      mismatchReason: extracted.documentTypeMismatchReason ??
+        "This doesn't look like the document this requirement asks for.",
+      confidence: "high",
+    };
+  }
+
   return {
     extracted,
     matchesRequirement: "uncertain",

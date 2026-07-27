@@ -17,6 +17,8 @@ const cases: { name: string; input: ExtractedDocumentFields; expected: DocumentR
       keyValues: {},
       legible: false,
       legibilityIssue: "Image too blurry to read",
+      matchesDocumentType: true,
+      documentTypeMismatchReason: null,
     },
     expected: {
       extracted: {
@@ -26,6 +28,8 @@ const cases: { name: string; input: ExtractedDocumentFields; expected: DocumentR
         keyValues: {},
         legible: false,
         legibilityIssue: "Image too blurry to read",
+        matchesDocumentType: true,
+        documentTypeMismatchReason: null,
       },
       matchesRequirement: false,
       mismatchReason: "Image too blurry to read",
@@ -41,6 +45,8 @@ const cases: { name: string; input: ExtractedDocumentFields; expected: DocumentR
       keyValues: {},
       legible: false,
       legibilityIssue: null,
+      matchesDocumentType: true,
+      documentTypeMismatchReason: null,
     },
     expected: {
       extracted: {
@@ -50,6 +56,8 @@ const cases: { name: string; input: ExtractedDocumentFields; expected: DocumentR
         keyValues: {},
         legible: false,
         legibilityIssue: null,
+        matchesDocumentType: true,
+        documentTypeMismatchReason: null,
       },
       matchesRequirement: false,
       mismatchReason: "Document is not legible.",
@@ -57,7 +65,63 @@ const cases: { name: string; input: ExtractedDocumentFields; expected: DocumentR
     },
   },
   {
-    name: "legible document is provisionally uncertain, never auto-approved",
+    name: "legible but wrong kind of document is a real failure, not uncertain",
+    input: {
+      documentType: "CV / resume",
+      detectedName: "Jordan Alvarez",
+      detectedDates: [],
+      keyValues: {},
+      legible: true,
+      legibilityIssue: null,
+      matchesDocumentType: false,
+      documentTypeMismatchReason: "This is a CV, not a degree certificate.",
+    },
+    expected: {
+      extracted: {
+        documentType: "CV / resume",
+        detectedName: "Jordan Alvarez",
+        detectedDates: [],
+        keyValues: {},
+        legible: true,
+        legibilityIssue: null,
+        matchesDocumentType: false,
+        documentTypeMismatchReason: "This is a CV, not a degree certificate.",
+      },
+      matchesRequirement: false,
+      mismatchReason: "This is a CV, not a degree certificate.",
+      confidence: "high",
+    },
+  },
+  {
+    name: "type mismatch with no reason still gets a real fallback message",
+    input: {
+      documentType: "unrelated photo",
+      detectedName: null,
+      detectedDates: [],
+      keyValues: {},
+      legible: true,
+      legibilityIssue: null,
+      matchesDocumentType: false,
+      documentTypeMismatchReason: null,
+    },
+    expected: {
+      extracted: {
+        documentType: "unrelated photo",
+        detectedName: null,
+        detectedDates: [],
+        keyValues: {},
+        legible: true,
+        legibilityIssue: null,
+        matchesDocumentType: false,
+        documentTypeMismatchReason: null,
+      },
+      matchesRequirement: false,
+      mismatchReason: "This doesn't look like the document this requirement asks for.",
+      confidence: "high",
+    },
+  },
+  {
+    name: "legible and the right kind of document is provisionally uncertain, never auto-approved",
     input: {
       documentType: "transcript",
       detectedName: "Jordan Alvarez",
@@ -65,6 +129,8 @@ const cases: { name: string; input: ExtractedDocumentFields; expected: DocumentR
       keyValues: { institution: "University of Example" },
       legible: true,
       legibilityIssue: null,
+      matchesDocumentType: true,
+      documentTypeMismatchReason: null,
     },
     expected: {
       extracted: {
@@ -74,6 +140,8 @@ const cases: { name: string; input: ExtractedDocumentFields; expected: DocumentR
         keyValues: { institution: "University of Example" },
         legible: true,
         legibilityIssue: null,
+        matchesDocumentType: true,
+        documentTypeMismatchReason: null,
       },
       matchesRequirement: "uncertain",
       mismatchReason: null,

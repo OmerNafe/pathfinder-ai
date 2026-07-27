@@ -477,6 +477,8 @@ class _DocumentUploadCard extends ConsumerWidget {
       requirementId: requirement.id,
       fileName: file.name,
       bytes: bytes,
+      requirementTitle: requirement.title,
+      requirementDescription: requirement.description,
     );
 
     if (!context.mounted) return;
