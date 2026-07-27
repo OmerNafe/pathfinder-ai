@@ -651,11 +651,16 @@ class _AiReviewNote extends StatelessWidget {
 
       case DocumentReviewStatus.reviewed:
         final result = document.reviewResult;
-        final extracted = result?['extracted'] as Map<String, dynamic>?;
-        final legible = extracted?['legible'] as bool? ?? true;
+        // This used to only ever check extracted.legible -- so a legible
+        // file of completely the wrong type (a bachelor's certificate
+        // uploaded as a passport) still showed this green "AI reviewed"
+        // state, because matchesRequirement was never actually read here.
+        // matchesRequirement is the real verdict: false is a real
+        // rejection regardless of *why*.
+        final matches = result?['matchesRequirement'];
 
-        if (!legible) {
-          final issue = result?['mismatchReason'] as String? ?? 'Document is not legible.';
+        if (matches == false) {
+          final issue = result?['mismatchReason'] as String? ?? 'Document did not pass review.';
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

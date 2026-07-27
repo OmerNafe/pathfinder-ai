@@ -89,9 +89,15 @@ PathwayTask _toTask({
         statusNote: uploaded.reviewError ?? 'Review failed — try re-uploading.',
       );
     case DocumentReviewStatus.reviewed:
-      final extracted = uploaded.reviewResult?['extracted'];
-      final legible = extracted is Map ? (extracted['legible'] as bool? ?? true) : true;
-      if (!legible) {
+      // This used to only ever look at extracted.legible -- so a legible
+      // file of the completely wrong type (a CV uploaded as a passport)
+      // still showed as a fully verified task, because matchesRequirement
+      // (added when document-type checking was) was never actually read
+      // here. matchesRequirement is the real verdict now: false is a real
+      // rejection regardless of *why* (illegible or wrong document),
+      // matching what compare_document.ts on the server already decided.
+      final matches = uploaded.reviewResult?['matchesRequirement'];
+      if (matches == false) {
         final issue = uploaded.reviewResult?['mismatchReason'] as String?;
         return PathwayTask(
           step: step,
@@ -99,7 +105,7 @@ PathwayTask _toTask({
           title: requirement.title,
           description: requirement.description,
           status: TaskStatus.rejected,
-          statusNote: issue ?? 'Document could not be read — try re-uploading.',
+          statusNote: issue ?? 'Document did not pass review — try re-uploading.',
         );
       }
       return PathwayTask(
